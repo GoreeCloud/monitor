@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 from django.test import SimpleTestCase
@@ -253,6 +255,17 @@ class UptimeKumaEvidenceSanitizationTests(SimpleTestCase):
         )
         self.assertEqual(url, "http://172.19.0.50:3001")
         self.assertEqual(source, "docker-proxy-network")
+
+    def test_retired_kuma_collector_requires_explicit_historical_acknowledgement(self):
+        path = Path(__file__).resolve().parents[1] / "scripts" / "collect_live_acceptance_evidence.py"
+        completed = subprocess.run(
+            [sys.executable, str(path), "--no-archive", "--skip-kuma"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("--historical-predecessor-evidence is required", completed.stderr)
 
     class _temporary_json:
         def __init__(self, document):
