@@ -21,8 +21,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from monitoring.kuma_sanitize import sanitize_config_document  # noqa: E402
 
 
-SCHEMA = "goreecloud-monitor-live-acceptance-evidence"
-VERSION = 2
+SCHEMA = "goreecloud-monitor-uptime-kuma-historical-evidence"
+VERSION = 3
 
 
 def _run(label: str, args: list[str], *, timeout: int = 30) -> dict[str, Any]:
@@ -326,7 +326,12 @@ def _archive(output_dir: Path) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Collect a sanitized, read-only GoreeCloud Monitor live-acceptance evidence bundle"
+        description="Collect sanitized, read-only historical Uptime Kuma predecessor evidence; this does not establish current Monitor production acceptance"
+    )
+    parser.add_argument(
+        "--historical-predecessor-evidence",
+        action="store_true",
+        help="Required acknowledgement that this collector is for retired Uptime Kuma comparison/recovery evidence only",
     )
     parser.add_argument("--output-dir", help="Evidence directory; defaults to a timestamped directory")
     parser.add_argument(
@@ -351,10 +356,14 @@ def main() -> int:
     parser.add_argument("--skip-kuma", action="store_true", help="Skip kuma-cli configuration collection")
     parser.add_argument("--no-archive", action="store_true", help="Do not create a tar.gz copy of the bundle")
     args = parser.parse_args()
+    if not args.historical_predecessor_evidence:
+        parser.error(
+            "--historical-predecessor-evidence is required; Uptime Kuma is retired and this collector must not be used as current production authority"
+        )
 
     os.umask(0o077)
     now = datetime.now(timezone.utc)
-    default_name = f"goreecloud-monitor-live-evidence-{now.strftime('%Y%m%dT%H%M%SZ')}"
+    default_name = f"goreecloud-monitor-uptime-kuma-historical-evidence-{now.strftime('%Y%m%dT%H%M%SZ')}"
     output_dir = Path(args.output_dir or default_name).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=False)
     os.chmod(output_dir, 0o700)
@@ -411,6 +420,12 @@ def main() -> int:
         "version": VERSION,
         "collected_at": now.isoformat(),
         "collector_revision": _git_revision() or "unknown",
+        "authority": {
+            "predecessor": "Uptime Kuma",
+            "predecessor_status": "retired",
+            "evidence_role": "historical-comparison-or-recovery-only",
+            "current_monitor_production_authority_established": False,
+        },
         "safety": {
             "mode": "read-only-live-evidence",
             "sudo_invoked": False,
