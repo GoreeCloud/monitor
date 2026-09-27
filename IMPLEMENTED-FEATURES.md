@@ -99,3 +99,7 @@ Still not established by source state alone:
 - explicit production approval or Stable qualification.
 
 See `PLANNED-FEATURES.md` for those open obligations.
+
+## Historical predecessor evidence safety
+
+- Retired Uptime Kuma collection is explicitly historical comparison/recovery evidence only and requires an operator acknowledgement flag before the collector will run; it cannot silently present predecessor state as current GoreeCloud Monitor production acceptance.
