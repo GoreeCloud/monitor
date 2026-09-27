@@ -79,3 +79,7 @@ Open production and Stable gates are recorded in `PLANNED-FEATURES.md` and must 
 Meaningful GoreeCloud Monitor changes must be recorded through this repository-local `CHANGELOGS.md`, using linked history files when volume requires it. The legacy root `CHANGELOG.md` and Drive `Change Log — Monitor.docx` must not be recreated as alternate authoritative changelogs.
 
 Historical facts may be corrected only through additive, traceable correction entries. Do not rewrite older evidence to resemble later architecture or lifecycle state.
+
+## 2026-09-27
+
+- Hardened the retired Uptime Kuma evidence collector so it fails closed unless the operator explicitly acknowledges historical-predecessor use, emits a historical-only schema/authority boundary, and cannot be mistaken for current Monitor production authority.
