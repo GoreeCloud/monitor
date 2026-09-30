@@ -427,7 +427,7 @@ def main() -> int:
             "current_monitor_production_authority_established": False,
         },
         "safety": {
-            "mode": "read-only-live-evidence",
+            "mode": "read-only-historical-predecessor-evidence",
             "sudo_invoked": False,
             "raw_uptime_configuration_retained": False,
             "stderr_retained": False,
