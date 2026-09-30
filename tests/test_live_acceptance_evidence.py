@@ -256,6 +256,12 @@ class UptimeKumaEvidenceSanitizationTests(SimpleTestCase):
         self.assertEqual(url, "http://172.19.0.50:3001")
         self.assertEqual(source, "docker-proxy-network")
 
+    def test_retired_kuma_collector_declares_historical_safety_mode(self):
+        path = Path(__file__).resolve().parents[1] / "scripts" / "collect_live_acceptance_evidence.py"
+        source = path.read_text(encoding="utf-8")
+        self.assertIn('"mode": "read-only-historical-predecessor-evidence"', source)
+        self.assertNotIn('"mode": "read-only-live-evidence"', source)
+
     def test_retired_kuma_collector_requires_explicit_historical_acknowledgement(self):
         path = Path(__file__).resolve().parents[1] / "scripts" / "collect_live_acceptance_evidence.py"
         completed = subprocess.run(
