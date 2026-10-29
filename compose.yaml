@@ -2,6 +2,8 @@ name: goreecloud-monitor
 services:
   uptime-kuma:
     image: louislam/uptime-kuma:2.5.8-slim
+    environment:
+      UPTIME_KUMA_DB_TYPE: sqlite
     restart: unless-stopped
     ports:
       - "127.0.0.1:3301:3001"
