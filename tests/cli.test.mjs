@@ -43,7 +43,7 @@ test("summary returns degraded for DOWN and uses same-origin login",async()=>{
   const m=mockCtx({});
   const code=await main(["status"],m.ctx);
   assert.equal(code,EXIT.DEGRADED);
-  assert.match(m.stdout.join(""),/Gateway/);
+  assert.match(m.stdout.join(""),/Published services: 2/);
   assert.match(m.stdout.join(""),/DNS/);
   assert.deepEqual(m.calls.map(x=>x.path),["/api/login","/api/status"]);
   assert.equal(m.calls[0].origin,"http://127.0.0.1:4305");
