@@ -14,6 +14,21 @@ monitorctl doctor
 
 Use an authorized SSH tunnel (or approved private network) to reach the frontend. By default the CLI targets `http://127.0.0.1:4305`, which is loopback only. For an approved HTTPS deployment, set `MONITOR_URL=https://monitor.goreecloud.com`. The CLI rejects cleartext HTTP to non-loopback hosts, embedded URL credentials and redirects.
 
+## Run directly on the GoreeCloud VPS
+
+The same CLI is packaged inside the locked-down `monitor-web` container. From the authorized Monitor Compose checkout on `goreecloud-vps-01`:
+
+```sh
+docker compose exec -T monitor-web node bin/monitorctl.mjs --help
+docker compose exec -T monitor-web node bin/monitorctl.mjs doctor
+docker compose exec -T monitor-web node bin/monitorctl.mjs status --json
+docker compose exec -T monitor-web node bin/monitorctl.mjs list --state down
+```
+
+The CLI uses the existing monitor-web localhost listener and private process environment, so **no new TCP port, service, credential file, or Docker socket mount** is required. Only authorized operators with existing Docker Compose access can invoke it. As with any Docker/host administrative access, protect that permission.
+
+When `MONITOR_PUBLIC_ORIGIN` is enabled for approved external ingress, the CLI must target the matching approved HTTPS origin with `MONITOR_URL`; its local default may be rejected by strict origin checks. No insecure-origin bypass is provided.
+
 ## Authentication
 
 Set `MONITOR_ACCESS_TOKEN` in the **shell process environment**, using your private secret injection workflow, then run:

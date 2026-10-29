@@ -15,7 +15,7 @@ The original console follows the semantic colors and Canvas / Surface / Lens dir
 
 ## Command-line interface
 
-A secure, read-only `monitorctl` CLI is included for status checks, monitor listings, incident history, safe CSV/JSON exports, health diagnostics, and periodic watching. It uses the same authenticated backend and offers machine-readable output and stable exit codes; see [CLI usage](docs/CLI.md). No Kuma administration is claimed.
+A secure, read-only `monitorctl` CLI is included for status checks, monitor listings, incident history, safe CSV/JSON exports, health diagnostics, and periodic watching. It uses the same authenticated backend and offers machine-readable output and stable exit codes; see [CLI usage](docs/CLI.md). On the VPS run `docker compose exec -T monitor-web node bin/monitorctl.mjs status` after onboarding, or run locally through `node bin/monitorctl.mjs`. No Kuma administration is claimed.
 
 ## Getting started
 
