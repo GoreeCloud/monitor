@@ -1,0 +1,12 @@
+{
+  "name": "@goreecloud/monitor",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "description": "Original GoreeCloud Monitor console for Uptime Kuma",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check server.mjs && node --check public/app.js && node --check lib/status.mjs"
+  }
+}

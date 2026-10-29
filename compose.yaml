@@ -1,0 +1,49 @@
+name: goreecloud-monitor
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:2.5.8-slim
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3301:3001"
+    volumes:
+      - uptime-kuma-data:/app/data
+    networks:
+      - monitor-internal
+    security_opt:
+      - no-new-privileges:true
+
+  monitor-web:
+    build: .
+    restart: unless-stopped
+    init: true
+    depends_on:
+      - uptime-kuma
+    ports:
+      - "127.0.0.1:4305:4305"
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "4305"
+      KUMA_BASE_URL: http://uptime-kuma:3001
+    networks:
+      - monitor-internal
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4305/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+networks:
+  monitor-internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  uptime-kuma-data:
