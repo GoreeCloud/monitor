@@ -29,3 +29,16 @@ test("no synthetic uptime when upstream offline", async () => {
   const value=await fetchKumaStatus({baseUrl:"http://127.0.0.1:1",slug:"goreecloud"});
   assert.equal(value.kind,"unavailable");
 });
+
+test("orders reverse-chronological heartbeats before determining latest state", () => {
+  const data=normalizeStatus({publicGroupList:[{name:"Core",monitorList:[{id:7,name:"Backup"}]}]},
+    {heartbeatList:{7:[{status:0,time:"2026-10-29 09:59:00"},{status:1,time:"2026-10-29 09:58:00"}]}},
+    Date.parse("2026-10-29T10:00:00Z"));
+  assert.equal(data.monitors[0].state,"down");
+  assert.deepEqual(data.monitors[0].recent,[1,0]);
+});
+test("accepts v2 status-page pinned incidents collection without injecting HTML", () => {
+  const data=normalizeStatus({publicGroupList:[],incidents:[{title:"Network",content:"<b>Details</b>",active:true,pin:true,createdDate:"2026-10-29 09:55:00"}]}, {}, Date.parse("2026-10-29T10:00:00Z"));
+  assert.equal(data.incident.title,"Network");
+  assert.equal(data.incident.content,"Details");
+});
