@@ -25,6 +25,7 @@ const attempts = new Map();
 const allowed = new Map([
   ["/", ["public/index.html", "text/html; charset=utf-8"]],
   ["/app.js", ["public/app.js", "text/javascript; charset=utf-8"]],
+  ["/csv.js", ["public/csv.js", "text/javascript; charset=utf-8"]],
   ["/style.css", ["public/style.css", "text/css; charset=utf-8"]],
   ["/gc-tokens.css", ["public/gc-tokens.css", "text/css; charset=utf-8"]],
 ]);

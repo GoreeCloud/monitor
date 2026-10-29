@@ -8,7 +8,7 @@
   <title>GoreeCloud Monitor</title>
   <link rel="stylesheet" href="/gc-tokens.css">
   <link rel="stylesheet" href="/style.css">
-  <script defer src="/app.js"></script>
+  <script type="module" src="/app.js"></script>
 </head>
 <body>
   <div id="login-screen" class="login-screen">
@@ -104,6 +104,7 @@
             <div class="table-tools">
               <label class="search-box"><span aria-hidden="true">⌕</span><span class="sr-only">Search monitored services</span><input id="search" type="search" placeholder="Search services…" autocomplete="off"></label>
               <label class="filter-box"><span class="sr-only">Filter service status</span><select id="filter"><option value="all">All statuses</option><option value="up">Online</option><option value="down">Offline</option><option value="unknown">Unknown</option><option value="maintenance">Maintenance</option></select></label>
+              <button id="export-csv" type="button" class="button outline" disabled aria-label="Export published service details as CSV">Export CSV</button>
             </div>
             <div class="table-scroll">
               <table><thead><tr><th scope="col">Service</th><th scope="col">Current status</th><th scope="col">24h uptime</th><th scope="col">Latency</th><th scope="col">Recent checks</th></tr></thead>
@@ -115,8 +116,9 @@
 
           <aside class="right-rail">
             <section id="incidents" class="panel incident-panel" aria-labelledby="incidents-title">
-              <div class="panel-header"><div><p class="panel-eyebrow">ACTIVITY</p><h2 id="incidents-title">Latest incident</h2></div><span class="small-symbol" aria-hidden="true">◷</span></div>
+              <div class="panel-header"><div><p class="panel-eyebrow">ACTIVITY</p><h2 id="incidents-title">Incident activity</h2></div><span class="small-symbol" aria-hidden="true">◷</span></div>
               <div id="incident-content" class="incident-body"><div class="small-empty">No incident information loaded.</div></div>
+              <p class="history-note" id="history-note">Incident history is retrieved from the published Uptime Kuma status page.</p>
             </section>
             <section class="panel context-panel" aria-labelledby="context-title">
               <div class="panel-header"><div><p class="panel-eyebrow">SOURCE & TRUST</p><h2 id="context-title">How this works</h2></div></div>

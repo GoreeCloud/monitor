@@ -7,7 +7,8 @@ The original console follows the semantic colors and Canvas / Surface / Lens dir
 ## What works
 
 - Authenticated, read-only monitoring dashboard displaying monitors, status, response times, recent heartbeats and incident information sourced from a Uptime Kuma **public status page**.
-- Search, status filtering, manual refresh and responsive light/dark appearance.
+- Search, status filtering, manual refresh, UTF-8 CSV export with spreadsheet-formula protection and responsive light/dark appearance.
+- Read-only public incident history and maintenance notices when published by Uptime Kuma 2.5.8.
 - A server-to-server status adapter. Browser clients never receive the upstream service URL or admin credentials.
 - Explicitly distinguish unavailable backend, unconfigured status page, empty monitor group and operational monitor states. Never fabricate uptime.
 - Secure-by-default, loopback-bound Docker Compose services, with Kuma data in a persistent volume.

@@ -1,16 +1,19 @@
+import {buildMonitorCsv} from "./csv.js";
 const $ = (id) => document.getElementById(id);
 const dashboard = $("dashboard");
 const loginScreen = $("login-screen");
 let state = {kind:"loading",monitors:[],counts:{up:0,down:0,unknown:0,maintenance:0}};
 let loading = false;
 const themeKey = "gc-monitor-theme";
+const safeThemeRead=()=>{try{return localStorage.getItem(themeKey)}catch{return null}};
+const safeThemeWrite=(mode)=>{try{localStorage.setItem(themeKey,mode)}catch{}};
 function setTheme(mode) {
   document.documentElement.setAttribute("data-gc-mode", mode);
   $("theme").textContent = mode === "dark" ? "☼" : "◐";
   $("theme").setAttribute("aria-label", "Switch to " + (mode === "dark" ? "light" : "dark") + " mode");
-  localStorage.setItem(themeKey, mode);
+  safeThemeWrite(mode);
 }
-setTheme(localStorage.getItem(themeKey) === "light" ? "light" : "dark");
+setTheme(safeThemeRead() === "light" ? "light" : "dark");
 $("theme").addEventListener("click", () => setTheme(document.documentElement.getAttribute("data-gc-mode") === "dark" ? "light" : "dark"));
 
 function showLogin() { dashboard.hidden = true; loginScreen.hidden = false; $("token").value = ""; }
@@ -81,20 +84,39 @@ function render(data) {
   number("unknown",ready?data.counts.unknown+data.counts.maintenance:null);
   $("total-note").textContent=ready ? "Only services on the public status page" : "Waiting for status data";
   $("updated").textContent=ready ? "Updated "+new Date(data.fetchedAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : "No verified update";
-  $("notice").hidden=ready&&data.monitors.length>0;
+  $("export-csv").disabled=!ready || data.monitors.length===0;
+  $("notice").hidden=ready && data.monitors.length>0 && !data.maintenanceCount;
   if (ready && !data.monitors.length) notice("No published monitors","Add monitors to the configured Uptime Kuma public status page to populate this view.");
-  if (!ready) notice(data.kind==="unconfigured"?"Status page setup required":"Engine connection unavailable",data.message || "Retry after checking Uptime Kuma.");
+  else if (ready && data.maintenanceCount) notice("Active maintenance",data.maintenanceCount+" maintenance window(s) are currently published by Uptime Kuma.");
+  else if (!ready) notice(data.kind==="unconfigured"?"Status page setup required":"Engine connection unavailable",data.message || "Retry after checking Uptime Kuma.");
   const incident=$("incident-content");incident.replaceChildren();
-  if (ready && data.incident) {
-    const tag=document.createElement("span");tag.className="incident-tag";tag.textContent="Published incident";
-    const title=document.createElement("h3");title.textContent=data.incident.title;
-    const detail=document.createElement("p");detail.textContent=data.incident.content || "No incident description";
-    incident.append(tag,title,detail);
+  const recent=ready?Array.isArray(data.incidentHistory)?data.incidentHistory:[]:[];
+  const pinned=ready && data.incident?[data.incident]:[];
+  const items=recent.length?recent.slice(0,7):pinned;
+  if (items.length) {
+    for (const entry of items) {
+      const article=document.createElement("article");article.className="incident-entry";
+      const summary=document.createElement("div");summary.className="incident-summary";
+      const label=document.createElement("span");label.className="incident-tag";
+      label.textContent=entry.active?"Active":"Recorded";
+      const date=document.createElement("time");date.className="incident-date";
+      date.textContent=entry.createdAt||"Date unavailable";
+      summary.append(label,date);
+      const title=document.createElement("h3");title.textContent=entry.title;
+      const detail=document.createElement("p");detail.textContent=entry.content||"No incident description published";
+      article.append(summary,title,detail);incident.append(article);
+    }
   } else {
     const div=document.createElement("div");div.className="small-empty";
-    div.textContent=ready?"No incident published on this status page.":"Incident information is unavailable until the source connects.";
+    div.textContent=!ready?"Incident information unavailable until the status page connects.":
+      data.incidentHistoryAvailable?"No incident history published on this status page.":
+      "Incident history endpoint is unavailable. No active incident is published.";
     incident.append(div);
   }
+  $("history-note").textContent=ready ?
+    (data.incidentHistoryAvailable?"Showing the most recent published incident entries. This is not a private audit trail.":
+      "Incident history is unavailable; active incidents are shown when published.") :
+    "Incident activity requires a reachable Uptime Kuma status page.";
   renderRows();
 }
 async function refresh() {
@@ -114,6 +136,17 @@ async function refresh() {
 $("refresh").addEventListener("click",refresh);
 $("search").addEventListener("input",renderRows);
 $("filter").addEventListener("change",renderRows);
+$("export-csv").addEventListener("click",()=>{
+  if (state.kind!=="ready" || !state.monitors.length) return;
+  const csv=buildMonitorCsv(state.monitors);
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement("a");link.href=url;
+  link.download="goreecloud-monitor-"+new Date().toISOString().slice(0,10)+".csv";
+  document.body.append(link);link.click();link.remove();
+  // Revoke asynchronously to accommodate browser download scheduling.
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
 $("login-form").addEventListener("submit",async(event)=>{
   event.preventDefault();
   const button=$("login-form").querySelector("button");
