@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en" data-gc-mode="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="GoreeCloud Monitor — a private monitoring overview powered by Uptime Kuma.">
+  <title>GoreeCloud Monitor</title>
+  <link rel="stylesheet" href="/gc-tokens.css">
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <div id="login-screen" class="login-screen">
+    <div class="login-card">
+      <div class="brand-badge" aria-hidden="true"><span class="brand-pulse"></span></div>
+      <p class="eyebrow">GOREECLOUD / OBSERVABILITY</p>
+      <h1>Your cloud, in clear view.</h1>
+      <p class="muted">A private view of the services you choose to monitor. Sign in with your Monitor access token.</p>
+      <form id="login-form">
+        <label for="token">Operator access token</label>
+        <input id="token" name="token" type="password" required minlength="24" autocomplete="current-password" placeholder="Enter your private access token">
+        <button class="button primary" type="submit">Unlock Monitor <span aria-hidden="true">→</span></button>
+        <p id="login-error" class="error" role="alert" hidden></p>
+      </form>
+      <p class="login-note">Operator access only. Do not share your access token.</p>
+    </div>
+    <div class="login-art" aria-hidden="true">
+      <div class="orbit orbit-1"></div><div class="orbit orbit-2"></div><div class="orbit orbit-3"></div>
+      <div class="orb-core"><div class="orb-mark">M</div></div>
+      <div class="art-label">Operational clarity, without the noise.</div>
+    </div>
+  </div>
+
+  <div id="dashboard" class="shell" hidden>
+    <aside class="sidebar">
+      <a class="identity" href="/" aria-label="GoreeCloud Monitor home">
+        <span class="identity-icon"><span class="brand-pulse"></span></span>
+        <span class="identity-text"><strong>GoreeCloud</strong><span>MONITOR</span></span>
+      </a>
+      <div class="workspace-label">WORKSPACE</div>
+      <nav aria-label="Main navigation">
+        <a class="nav-link active" href="#overview" aria-current="page"><span aria-hidden="true">◫</span> Overview</a>
+        <a class="nav-link" href="#services"><span aria-hidden="true">▤</span> Services</a>
+        <a class="nav-link" href="#incidents"><span aria-hidden="true">◷</span> Incidents</a>
+      </nav>
+      <div class="side-bottom">
+        <div class="source-chip"><span class="status-light"></span><span>Uptime Kuma<br><small>Live source when connected</small></span></div>
+        <button id="signout" class="nav-link logout" type="button"><span aria-hidden="true">↗</span> Sign out</button>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="crumb">GoreeCloud <span>/</span> Monitor <span>/</span> <strong>Overview</strong></div>
+        <div class="top-actions">
+          <span class="environment">SELF-HOSTED</span>
+          <button id="theme" class="icon-button" aria-label="Switch color theme" type="button">☼</button>
+          <button id="refresh" class="button outline" type="button"><span aria-hidden="true">↻</span> Refresh</button>
+        </div>
+      </header>
+
+      <main id="overview" class="content" tabindex="-1">
+        <div class="welcome">
+          <div>
+            <p class="eyebrow">SYSTEM INTELLIGENCE <span class="eyebrow-dot">·</span> LIVE OBSERVABILITY</p>
+            <h1>Everything, <em>at a glance.</em></h1>
+            <p class="subtitle">Your services, their health, and the signals that matter.</p>
+          </div>
+          <div id="source-indicator" class="health-badge" role="status"><span class="status-light"></span> Loading source</div>
+        </div>
+
+        <section class="metrics" aria-label="Monitor statistics">
+          <div class="metric-card metric-overall">
+            <div class="metric-heading"><span>Monitors published</span><span class="metric-symbol">◈</span></div>
+            <div class="metric-value" id="total">—</div>
+            <div class="metric-foot" id="total-note">Checking Uptime Kuma…</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-heading"><span>Online</span><span class="metric-symbol success">↗</span></div>
+            <div class="metric-value" id="up">—</div>
+            <div class="metric-foot">Based on fresh heartbeats</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-heading"><span>Offline</span><span class="metric-symbol danger">↘</span></div>
+            <div class="metric-value" id="down">—</div>
+            <div class="metric-foot">Reported as down</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-heading"><span>Unknown / maintenance</span><span class="metric-symbol warning">◴</span></div>
+            <div class="metric-value" id="unknown">—</div>
+            <div class="metric-foot">No fresh state or paused</div>
+          </div>
+        </section>
+
+        <div id="notice" class="notice" role="status" hidden><span class="notice-icon" aria-hidden="true">i</span><div><strong id="notice-title"></strong><p id="notice-text"></p></div></div>
+
+        <div class="detail-grid">
+          <section id="services" class="panel service-panel" aria-labelledby="services-title">
+            <div class="panel-header">
+              <div><p class="panel-eyebrow">MONITORING</p><h2 id="services-title">Service health</h2></div>
+              <span id="updated" class="updated">Not updated yet</span>
+            </div>
+            <div class="table-tools">
+              <label class="search-box"><span aria-hidden="true">⌕</span><span class="sr-only">Search monitored services</span><input id="search" type="search" placeholder="Search services…" autocomplete="off"></label>
+              <label class="filter-box"><span class="sr-only">Filter service status</span><select id="filter"><option value="all">All statuses</option><option value="up">Online</option><option value="down">Offline</option><option value="unknown">Unknown</option><option value="maintenance">Maintenance</option></select></label>
+            </div>
+            <div class="table-scroll">
+              <table><thead><tr><th scope="col">Service</th><th scope="col">Current status</th><th scope="col">24h uptime</th><th scope="col">Latency</th><th scope="col">Recent checks</th></tr></thead>
+                <tbody id="service-rows"><tr><td colspan="5" class="empty">Waiting for published monitoring data…</td></tr></tbody>
+              </table>
+            </div>
+            <div class="panel-footer"><span id="visible-count">No service data</span><span>Fresh heartbeat required for “Online”</span></div>
+          </section>
+
+          <aside class="right-rail">
+            <section id="incidents" class="panel incident-panel" aria-labelledby="incidents-title">
+              <div class="panel-header"><div><p class="panel-eyebrow">ACTIVITY</p><h2 id="incidents-title">Latest incident</h2></div><span class="small-symbol" aria-hidden="true">◷</span></div>
+              <div id="incident-content" class="incident-body"><div class="small-empty">No incident information loaded.</div></div>
+            </section>
+            <section class="panel context-panel" aria-labelledby="context-title">
+              <div class="panel-header"><div><p class="panel-eyebrow">SOURCE & TRUST</p><h2 id="context-title">How this works</h2></div></div>
+              <div class="source-list">
+                <div class="source-item"><span class="source-number">01</span><div><strong>Privacy first</strong><p>Your access token is verified by the Monitor server and never stored in browser storage.</p></div></div>
+                <div class="source-item"><span class="source-number">02</span><div><strong>Only what you publish</strong><p>Monitors appear here only after they are added to a Uptime Kuma status page.</p></div></div>
+                <div class="source-item"><span class="source-number">03</span><div><strong>Read-only by design</strong><p>Configure monitors, alerts and status pages in the private Uptime Kuma admin console.</p></div></div>
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        <footer>GoreeCloud Monitor <span>·</span> Powered by Uptime Kuma <span>·</span> Original GoreeCloud interface</footer>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
