@@ -13,6 +13,10 @@ The original console follows the semantic colors and Canvas / Surface / Lens dir
 - Explicitly distinguish unavailable backend, unconfigured status page, empty monitor group and operational monitor states. Never fabricate uptime.
 - Secure-by-default, loopback-bound Docker Compose services, with Kuma data in a persistent volume.
 
+## Command-line interface
+
+A secure, read-only `monitorctl` CLI is included for status checks, monitor listings, incident history, safe CSV/JSON exports, health diagnostics, and periodic watching. It uses the same authenticated backend and offers machine-readable output and stable exit codes; see [CLI usage](docs/CLI.md). No Kuma administration is claimed.
+
 ## Getting started
 
 1. Copy .env.example to .env and set two different high-entropy random secrets: MONITOR_ACCESS_TOKEN (at least 24 characters) and MONITOR_SESSION_SECRET (at least 32 characters). Keep .env private.

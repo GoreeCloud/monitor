@@ -37,6 +37,10 @@ Record the current Git revision, upstream image digest and volume name. Before c
 
 An isolated SQLite integrity check is not full application recovery evidence. A separate restored Uptime Kuma instance still needs to be launched and checked before declaring production recovery acceptance.
 
+## Read-only CLI for operational checks
+
+After setting `MONITOR_ACCESS_TOKEN` through a private process environment, run `node bin/monitorctl.mjs status --json` or `node bin/monitorctl.mjs watch --count 2 --interval 30 --json`. Read [docs/CLI.md](../docs/CLI.md) for script exit codes and access restrictions. Local CLI commands do not create monitors or bypass Uptime Kuma admin onboarding.
+
 ## Unresolved deployment prerequisites
 
 Uptime Kuma administrator onboarding and a safe public status page with slug goreecloud remain necessary before Monitor shows actual health data. DNS/TLS/ingress exposure, native clients, device screenshots, retention scheduling, an encrypted offsite backup, and restore-to-running-service acceptance remain outstanding.

@@ -7,6 +7,9 @@
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check server.mjs && node --check public/app.js && node --check lib/status.mjs"
+    "check": "node --check server.mjs && node --check public/app.js && node --check lib/status.mjs && node --check lib/cli.mjs && node --check bin/monitorctl.mjs"
+  },
+  "bin": {
+    "monitorctl": "./bin/monitorctl.mjs"
   }
 }
