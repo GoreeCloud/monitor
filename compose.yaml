@@ -43,7 +43,6 @@ services:
 networks:
   monitor-internal:
     driver: bridge
-    internal: true
 
 volumes:
   uptime-kuma-data:
