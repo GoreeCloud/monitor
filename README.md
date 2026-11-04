@@ -16,7 +16,7 @@ GoreeCloud Monitor is a privacy-first, self-hosted uptime, service-health and in
 - SQLite WAL persistence for monitors and bounded heartbeat history; consistent non-overwriting backup utility.
 - Private authenticated administrator console with session cookie and anti-CSRF token.
 - Sample-based 24-hour check success rates, labeled distinctly from uptime.
-- Creation, editing, pausing, resuming and removal of monitors; HTTP response expectations, recent activity and summary cards.
+- Creation, editing, pausing, resuming and removal of monitors; accessible name/endpoint/type search, health status filtering, HTTP response expectations, recent activity and summary cards.
 - One-time push token rotation with immediate revocation of the previous heartbeat URL.
 - Public status page with opt-in visibility (monitors and maintenance notices default to private).
 - GoreeCloud UI Foundations 1.0.1 semantic tokens integrated locally, with persisted light/dark appearance controls.

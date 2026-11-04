@@ -18,6 +18,8 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: JavaScript syntax
         run: node --check web/app.js
+      - name: Browser-independent filter tests
+        run: node --test tests/test_web_ui.mjs
       - name: Check secrets not committed
         run: |
           test ! -e secrets/admin_password.txt

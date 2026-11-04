@@ -68,6 +68,14 @@
         <div class="main-grid">
           <section class="panel monitors-panel">
             <div class="panel-heading"><div><div class="eyebrow small">LIVE PULSE</div><h2>Service health</h2></div><span class="outline-chip">Auto-refresh · 15s</span></div>
+            <div id="monitor-tools" class="monitor-tools">
+              <label class="monitor-field" for="monitor-search"><span>Search services</span><input type="search" id="monitor-search" placeholder="Name, endpoint, or type" autocomplete="off"></label>
+              <label class="monitor-field monitor-status-field" for="monitor-status-filter"><span>Health status</span><select id="monitor-status-filter">
+                <option value="all">All statuses</option><option value="up">Operational</option><option value="down">Needs attention</option>
+                <option value="pending">Pending</option><option value="paused">Paused</option><option value="maintenance">Maintenance</option>
+              </select></label>
+            </div>
+            <p id="monitor-result-count" class="monitor-result-count" role="status" aria-live="polite"></p>
             <div id="monitor-list" class="monitor-list"></div>
           </section>
           <section class="panel activity-panel">
