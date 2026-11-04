@@ -47,3 +47,7 @@ To report a vulnerability, use private owner channels rather than disclosing exp
 ## Backup confidentiality
 
 SQLite backups include monitor configurations, targets, operational timestamps, and potentially sensitive incident content. The backup utility writes owner-only files with no-overwrite behavior, but it does not encrypt output or transport it. Apply filesystem encryption and access controls externally. Treat full database backups as private infrastructure records.
+
+### Maintenance-state publication isolation
+
+Private active maintenance windows suppress configured operational notifications and appear in authenticated administrative status, but they must not silently mark public service rows as under maintenance. Public status labels reflect only explicitly published active maintenance windows. A regression test exercises both private and public views.

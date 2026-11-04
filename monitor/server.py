@@ -325,11 +325,13 @@ def send_notify_event(monitor_id: int, name: str, state: str):
 NOTIFY_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="notify")
 
 
-def active_maintenance() -> bool:
+def active_maintenance(public_only: bool = False) -> bool:
     now = utcnow()
+    statement = "SELECT 1 FROM maintenance WHERE starts_at<=? AND ends_at>=?"
+    if public_only:
+        statement += " AND public=1"
     with db() as con:
-        return con.execute("SELECT 1 FROM maintenance WHERE starts_at<=? AND ends_at>=? LIMIT 1",
-                           (now, now)).fetchone() is not None
+        return con.execute(statement + " LIMIT 1", (now, now)).fetchone() is not None
 
 
 def monitor_list(public: bool = False) -> list[dict]:
@@ -338,10 +340,11 @@ def monitor_list(public: bool = False) -> list[dict]:
         if public:
             sql = "SELECT id,name,kind,public,active,state,last_check,latency_ms FROM monitors WHERE public=1"
         rows = [dict(x) for x in con.execute(sql + " ORDER BY id DESC").fetchall()]
+        maintenance_visible = active_maintenance(public_only=public)
         for row in rows:
             row["public"] = bool(row["public"])
             row["active"] = bool(row["active"])
-            if active_maintenance():
+            if maintenance_visible:
                 row["display_state"] = "maintenance"
             else:
                 row["display_state"] = row["state"] if row["active"] else "paused"

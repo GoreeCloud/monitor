@@ -201,6 +201,26 @@ class HttpIntegrationTests(unittest.TestCase):
             self.call("POST","/push/"+token,{"status":"up"})
             self.assertEqual(submit.call_count,2)
 
+    def test_private_maintenance_does_not_change_public_state(self):
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        start = (now - timedelta(minutes=10)).isoformat()
+        end = (now + timedelta(minutes=20)).isoformat()
+        cookie, csrf = self.login()
+        self.call("POST", "/api/monitors", {"name": "Public endpoint",
+                                          "kind": "push", "public": True}, cookie, csrf)
+        private = {"title": "Internal maintenance", "description": "Nonpublic change",
+                   "starts_at": start, "ends_at": end}
+        self.assertEqual(self.call("POST", "/api/maintenance", private, cookie, csrf)[0], 201)
+        public_state = json.loads(self.call("GET", "/api/public")[1])["monitors"][0]["display_state"]
+        self.assertEqual(public_state, "pending")
+        admin_state = json.loads(self.call("GET", "/api/monitors", cookie=cookie)[1])["monitors"][0]["display_state"]
+        self.assertEqual(admin_state, "maintenance")
+        published = {**private, "title": "Published maintenance", "public": True}
+        self.assertEqual(self.call("POST", "/api/maintenance", published, cookie, csrf)[0], 201)
+        public_state = json.loads(self.call("GET", "/api/public")[1])["monitors"][0]["display_state"]
+        self.assertEqual(public_state, "maintenance")
+
     def test_maintenance_is_private_by_default(self):
         from datetime import datetime, timedelta, timezone
         now = datetime.now(timezone.utc)

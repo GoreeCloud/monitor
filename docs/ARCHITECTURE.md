@@ -72,3 +72,7 @@ The authenticated /api/stats endpoint reports recorded check counts, successful 
 ## Service health and readiness
 
 The /healthz endpoint only establishes that the Python HTTP server responds. The separate /readyz endpoint queries the SQLite monitor table and returns HTTP 503 when the database is unavailable. The example Docker image uses this readiness endpoint for its container health check. These checks do not prove that individual monitors or scheduled probes are operational, and an external runtime deployment remains unverified.
+
+### Private versus public maintenance status
+
+Operational maintenance checks consider all active windows, while public status rendering considers only explicitly published active windows. This prevents a nonpublic maintenance schedule from exposing its existence through otherwise public monitor status labels. The first implementation still uses global rather than per-monitor maintenance scope.
