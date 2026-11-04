@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import secrets
 import socket
+import stat
 import sqlite3
 import ssl
 import threading
@@ -36,6 +37,9 @@ SESSIONS: dict[str, tuple[float, str]] = {}
 SESSIONS_LOCK = threading.Lock()
 LOGIN_ATTEMPTS: dict[str, list[float]] = {}
 LOGIN_LOCK = threading.Lock()
+LOGIN_WINDOW_SECONDS = 300
+LOGIN_ATTEMPT_LIMIT = 8
+MAX_LOGIN_SOURCES = 4096
 PUSH_LOCK = threading.Lock()
 PUSH_ATTEMPTS: dict[str, list[float]] = {}
 PUSH_RATE_LIMIT = 120
@@ -70,10 +74,52 @@ def create_session() -> tuple[str, str]:
     return session_id, csrf
 
 
+def record_login_attempt(ip: str, now: float | None = None) -> bool:
+    """Limit in-memory login histories without evicting active source budgets.
+
+    Trust the actual socket peer, never user-controlled forwarding headers.
+    If all source slots are active, reject new sources instead of letting
+    source churn reset the existing per-IP attempt limits.
+    """
+    if now is None:
+        now = time.monotonic()
+    cutoff = now - LOGIN_WINDOW_SECONDS
+    with LOGIN_LOCK:
+        if ip not in LOGIN_ATTEMPTS and len(LOGIN_ATTEMPTS) >= MAX_LOGIN_SOURCES:
+            # Only fully expired buckets can be discarded. This pruning
+            # is done on admission pressure, not on every login request.
+            expired = [key for key, history in LOGIN_ATTEMPTS.items()
+                       if not history or history[-1] <= cutoff]
+            for key in expired:
+                LOGIN_ATTEMPTS.pop(key, None)
+            if len(LOGIN_ATTEMPTS) >= MAX_LOGIN_SOURCES:
+                return False
+        recent = [stamp for stamp in LOGIN_ATTEMPTS.get(ip, ()) if stamp > cutoff]
+        if len(recent) >= LOGIN_ATTEMPT_LIMIT:
+            LOGIN_ATTEMPTS[ip] = recent
+            return False
+        recent.append(now)
+        LOGIN_ATTEMPTS[ip] = recent
+        return True
+
+
 def password() -> str:
     file_path = os.environ.get("GC_ADMIN_PASSWORD_FILE")
     if file_path:
-        value = Path(file_path).read_text(encoding="utf-8").rstrip("\r\n")
+        file = Path(file_path)
+        if os.name == "posix":
+            # Ensure the intended secret is a regular file before opening it.
+            # Check the opened descriptor too, so a swapped pathname cannot
+            # silently bypass the permission inspection.
+            info = file.stat()
+            if not stat.S_ISREG(info.st_mode):
+                raise RuntimeError("GC_ADMIN_PASSWORD_FILE must be a regular file")
+        with file.open("r", encoding="utf-8") as stream:
+            if os.name == "posix":
+                mode = os.fstat(stream.fileno()).st_mode
+                if not stat.S_ISREG(mode) or (mode & 0o077):
+                    raise RuntimeError("GC_ADMIN_PASSWORD_FILE requires owner-only permissions (chmod 600)")
+            value = stream.read().rstrip("\r\n")
     else:
         value = os.environ.get("GC_ADMIN_PASSWORD", "")
     if len(value) < 12:
@@ -724,12 +770,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             if path == "/api/login":
                 ip = self.client_address[0]
-                with LOGIN_LOCK:
-                    recent = [x for x in LOGIN_ATTEMPTS.get(ip, []) if x > time.time()-300]
-                    if len(recent) >= 8:
-                        return self.send(429, {"error": "Too many attempts"})
-                    recent.append(time.time())
-                    LOGIN_ATTEMPTS[ip] = recent
+                if not record_login_attempt(ip):
+                    return self.send(429, {"error": "Too many attempts"})
                 candidate = str(self.read_json().get("password", ""))
                 if not hmac.compare_digest(candidate, self.server.admin_password):
                     return self.send(401, {"error": "Invalid credentials"})
