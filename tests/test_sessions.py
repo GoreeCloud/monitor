@@ -61,12 +61,12 @@ class SessionLifecycleTests(unittest.TestCase):
     def test_expired_cookie_is_rejected_and_removed(self):
         with server.SESSIONS_LOCK:
             server.SESSIONS["expired-cookie"] = (time.time() - 10, "expired-csrf")
-        http = http.server.ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
-        http.admin_password = "fixture-only-not-production-password"
-        thread = threading.Thread(target=http.serve_forever, daemon=True)
+        listener = http.server.ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+        listener.admin_password = "fixture-only-not-production-password"
+        thread = threading.Thread(target=listener.serve_forever, daemon=True)
         thread.start()
         try:
-            connection = http.client.HTTPConnection("127.0.0.1", http.server_address[1], timeout=3)
+            connection = http.client.HTTPConnection("127.0.0.1", listener.server_address[1], timeout=3)
             connection.request("GET", "/api/me", headers={
                 "Cookie": "gc_session=expired-cookie"})
             response = connection.getresponse()
@@ -77,23 +77,23 @@ class SessionLifecycleTests(unittest.TestCase):
             with server.SESSIONS_LOCK:
                 self.assertNotIn("expired-cookie", server.SESSIONS)
         finally:
-            http.shutdown()
+            listener.shutdown()
             thread.join(timeout=5)
-            http.server_close()
+            listener.server_close()
 
     def test_login_route_creates_capped_usable_session(self):
         now = time.time()
         with server.SESSIONS_LOCK:
             for i in range(server.MAX_SESSIONS):
                 server.SESSIONS["fixture-%03d" % i] = (now + i + 15, "csrf")
-        http = http.server.ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
-        http.admin_password = "fixture-only-not-production-password"
-        thread = threading.Thread(target=http.serve_forever, daemon=True)
+        listener = http.server.ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+        listener.admin_password = "fixture-only-not-production-password"
+        thread = threading.Thread(target=listener.serve_forever, daemon=True)
         thread.start()
         try:
-            connection = http.client.HTTPConnection("127.0.0.1", http.server_address[1], timeout=3)
+            connection = http.client.HTTPConnection("127.0.0.1", listener.server_address[1], timeout=3)
             connection.request("POST", "/api/login",
-                body=json.dumps({"password": http.admin_password}),
+                body=json.dumps({"password": listener.admin_password}),
                 headers={"Content-Type": "application/json"})
             response = connection.getresponse()
             body = json.loads(response.read())
@@ -105,16 +105,16 @@ class SessionLifecycleTests(unittest.TestCase):
             with server.SESSIONS_LOCK:
                 self.assertEqual(len(server.SESSIONS), server.MAX_SESSIONS)
                 self.assertNotIn("fixture-000", server.SESSIONS)
-            session = http.client.HTTPConnection("127.0.0.1", http.server_address[1], timeout=3)
+            session = http.client.HTTPConnection("127.0.0.1", listener.server_address[1], timeout=3)
             session.request("GET", "/api/me", headers={"Cookie": cookie})
             authorized = session.getresponse()
             self.assertEqual(authorized.status, 200)
             self.assertEqual(json.loads(authorized.read())["csrf"], body["csrf"])
             session.close()
         finally:
-            http.shutdown()
+            listener.shutdown()
             thread.join(timeout=5)
-            http.server_close()
+            listener.server_close()
 
 
 if __name__ == "__main__":
