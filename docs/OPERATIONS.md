@@ -96,6 +96,30 @@ this script pointed at a production instance, export real session data into
 artifacts, or treat its CI screenshots as proof of manual screen-reader,
 cross-browser, accessible contrast, TLS reverse-proxy, or Android acceptance.
 
+## Isolated HTTPS reverse-proxy acceptance
+
+CI discovers `tests/test_tls_proxy.py` in both Python 3.12 and 3.13.
+This standard-library regression creates a disposable SQLite database and
+two listeners bound **only to 127.0.0.1**: the application HTTP origin and a
+minimal Python TLS-terminating test gateway. A short-lived `localhost`
+certificate is generated locally using the runner's existing `openssl`
+binary (no external certificate requests). Its private key stays in a
+mode-0700 temporary directory and is never checked into Git.
+
+Tests prove the untrusted test certificate fails system verification,
+explicitly trusting the disposable certificate succeeds, secure/HttpOnly/
+SameSite session cookies traverse the encrypted gateway, CSRF is required,
+private monitor data stays off public API endpoints, logout revokes the
+session, and forwarded identity headers do not grant authentication.
+
+This validates only an **isolated proxy fixture**, not a production proxy.
+Before any public deployment, independently verify the actual TLS
+certificate/chain and hostname, edge HSTS, strict Host and forwarded-header
+handling, ingress firewall isolation of the plaintext origin, cookie
+configuration, CSRF/origin behavior, WebSocket/HTTP behaviors if enabled,
+logs, timeouts and reverse-proxy security policy. A green fixture test
+does not prove those properties on a VPS or authorize deployment.
+
 ## Operational monitoring
 
 The /healthz endpoint reports basic service responsiveness, not dependency health or proof that all scheduled checks are executing. Protected /metrics can provide operational counters when configured with a strong GC_METRICS_TOKEN. Review logs for database errors and notify connector failures, but never log or publish credentials, heartbeat tokens or private URLs.
