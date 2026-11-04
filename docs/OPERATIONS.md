@@ -19,7 +19,7 @@ The standard-library service requires Python 3.12+. Install no extra dependencie
     python3 -m unittest discover -s tests -v
     node --check web/app.js
 
-Run the app on loopback with a strong password stored in a permission-restricted secret file:
+Run the app on loopback with a strong password stored in a permission-restricted secret file. On Linux/other POSIX hosts the password loader rejects group/world-readable files and nonregular file types; use `chmod 600` (or owner-read-only mode `0400`) and assign ownership to the process user:
 
     export GC_ADMIN_PASSWORD_FILE=/a/private/path/password.txt
     export GC_DATA_DIR=/a/private/path/monitor-data

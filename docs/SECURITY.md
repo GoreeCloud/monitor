@@ -49,6 +49,18 @@ revocation across multiple instances, multi-user authentication, or
 production session-management certification. Restarting the service
 invalidates in-memory sessions; protect the operator password separately.
 
+## Administrator password file permissions
+
+On POSIX hosts, `GC_ADMIN_PASSWORD_FILE` must reference a regular file
+readable only by its owner (for example, mode `0600` or `0400`).
+The loader checks the opened file descriptor before reading the secret and
+refuses group/world readable files, directories or special files. This
+reduces accidental credential disclosure in shared environments. It
+does not encrypt the file, prove correct ownership, restrict who can read
+the operator's environment, or replace OS isolation. If the deployment
+mounts read-only secrets, ensure they are readable by the nonroot Monitor
+UID without granting group/other permissions.
+
 ## Bounded login source accounting
 
 The development operator login endpoint tracks attempts by the **actual

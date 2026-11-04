@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import secrets
 import socket
+import stat
 import sqlite3
 import ssl
 import threading
@@ -105,7 +106,20 @@ def record_login_attempt(ip: str, now: float | None = None) -> bool:
 def password() -> str:
     file_path = os.environ.get("GC_ADMIN_PASSWORD_FILE")
     if file_path:
-        value = Path(file_path).read_text(encoding="utf-8").rstrip("\r\n")
+        file = Path(file_path)
+        if os.name == "posix":
+            # Ensure the intended secret is a regular file before opening it.
+            # Check the opened descriptor too, so a swapped pathname cannot
+            # silently bypass the permission inspection.
+            info = file.stat()
+            if not stat.S_ISREG(info.st_mode):
+                raise RuntimeError("GC_ADMIN_PASSWORD_FILE must be a regular file")
+        with file.open("r", encoding="utf-8") as stream:
+            if os.name == "posix":
+                mode = os.fstat(stream.fileno()).st_mode
+                if not stat.S_ISREG(mode) or (mode & 0o077):
+                    raise RuntimeError("GC_ADMIN_PASSWORD_FILE requires owner-only permissions (chmod 600)")
+            value = stream.read().rstrip("\r\n")
     else:
         value = os.environ.get("GC_ADMIN_PASSWORD", "")
     if len(value) < 12:
