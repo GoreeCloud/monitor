@@ -6,6 +6,7 @@ import hmac
 import http.client
 import http.cookies
 import http.server
+from email.utils import format_datetime
 import ipaddress
 import json
 import os
@@ -34,6 +35,9 @@ SESSIONS: dict[str, tuple[float, str]] = {}
 SESSIONS_LOCK = threading.Lock()
 LOGIN_ATTEMPTS: dict[str, list[float]] = {}
 LOGIN_LOCK = threading.Lock()
+PUSH_LOCK = threading.Lock()
+PUSH_ATTEMPTS: dict[str, list[float]] = {}
+PUSH_RATE_LIMIT = 120
 STOP = threading.Event()
 
 
@@ -99,9 +103,15 @@ def initialize():
         );
         CREATE TABLE IF NOT EXISTS maintenance (
           id INTEGER PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL,
-          starts_at TEXT NOT NULL, ends_at TEXT NOT NULL, created_at TEXT NOT NULL
+          starts_at TEXT NOT NULL, ends_at TEXT NOT NULL, created_at TEXT NOT NULL,
+          public INTEGER NOT NULL DEFAULT 0
         );
         """)
+        # Existing installations predate the opt-in publication flag.
+        # Add it in-place with a private default without replacing records.
+        columns = {r["name"] for r in con.execute("PRAGMA table_info(maintenance)")}
+        if "public" not in columns:
+            con.execute("ALTER TABLE maintenance ADD COLUMN public INTEGER NOT NULL DEFAULT 0")
 
 
 def valid_ip(value: str, allow_private: bool = ALLOW_PRIVATE) -> bool:
@@ -490,7 +500,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 incidents = [dict(r) for r in con.execute(
                     "SELECT id,title,description,status,created_at,updated_at FROM incidents WHERE public=1 ORDER BY id DESC LIMIT 25")]
                 maintenance = [dict(r) for r in con.execute(
-                    "SELECT title,description,starts_at,ends_at FROM maintenance WHERE ends_at>=? ORDER BY starts_at LIMIT 15", (utcnow(),))]
+                    "SELECT title,description,starts_at,ends_at FROM maintenance WHERE public=1 AND ends_at>=? ORDER BY starts_at LIMIT 15", (utcnow(),))]
             return self.send(200, {"monitors": monitor_list(public=True), "incidents": incidents,
                                    "maintenance": maintenance})
         if path == "/status.rss":
@@ -499,7 +509,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "SELECT title,description,updated_at FROM incidents WHERE public=1 ORDER BY id DESC LIMIT 25")]
             items = "".join("<item><title>" + xml_escape(r["title"]) + "</title><description>" +
                             xml_escape(r["description"]) + "</description><pubDate>" +
-                            xml_escape(r["updated_at"]) + "</pubDate></item>" for r in rows)
+                            xml_escape(format_datetime(datetime.fromisoformat(r["updated_at"]))) + "</pubDate></item>" for r in rows)
             body = '<?xml version="1.0" encoding="UTF-8"?>' + (
                 '<rss version="2.0"><channel><title>GoreeCloud Monitor incidents</title>'
                 '<description>Public incident updates</description>' + items + '</channel></rss>')
@@ -596,11 +606,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 token = path.removeprefix("/push/")
                 if len(token) < 30:
                     return self.send(404, {"error": "Unknown push monitor"})
+                digest = hashlib.sha256(token.encode()).hexdigest()
                 with db() as con:
                     row = con.execute("SELECT id FROM monitors WHERE token_hash=? AND active=1",
-                                      (hashlib.sha256(token.encode()).hexdigest(),)).fetchone()
+                                      (digest,)).fetchone()
                 if row is None:
                     return self.send(404, {"error": "Unknown push monitor"})
+                with PUSH_LOCK:
+                    now = time.monotonic()
+                    recent = [stamp for stamp in PUSH_ATTEMPTS.get(digest, []) if stamp > now - 60]
+                    if len(recent) >= PUSH_RATE_LIMIT:
+                        PUSH_ATTEMPTS[digest] = recent
+                        return self.send(429, {"error": "Push rate limit exceeded"})
+                    recent.append(now)
+                    PUSH_ATTEMPTS[digest] = recent
                 body = self.read_json()
                 status = body.get("status", "up")
                 if status not in ("up", "down"):
@@ -649,11 +668,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 a, b = datetime.fromisoformat(starts), datetime.fromisoformat(ends)
                 if a.tzinfo is None or b.tzinfo is None or b <= a:
                     raise ValueError("Maintenance times must have time zones and end after start")
+                if type(body.get("public", False)) is not bool:
+                    raise ValueError("Maintenance public flag must be a boolean")
                 with db() as con:
-                    cur = con.execute("INSERT INTO maintenance(title,description,starts_at,ends_at,created_at) VALUES(?,?,?,?,?)",
+                    cur = con.execute("INSERT INTO maintenance(title,description,starts_at,ends_at,created_at,public) VALUES(?,?,?,?,?,?)",
                                       (title, str(body.get("description", ""))[:2000],
                                        a.astimezone(timezone.utc).isoformat(timespec="seconds"),
-                                       b.astimezone(timezone.utc).isoformat(timespec="seconds"), utcnow()))
+                                       b.astimezone(timezone.utc).isoformat(timespec="seconds"), utcnow(),
+                                       int(body.get("public", False))))
                 return self.send(201, {"id": cur.lastrowid})
             return self.send(404, {"error": "Not found"})
         except (ValueError, TypeError, OverflowError) as exc:

@@ -21,12 +21,12 @@ GoreeCloud Monitor is a self-hosted, privacy-first service intelligence platform
 | 4 | Server/container/process | **Planned** | Docker API with restricted socket proxy, systemd, PM2 |
 | 5 | Databases and message brokers | **Planned** | PostgreSQL, MySQL, SQL Server, Oracle, MongoDB, Redis, Kafka, RabbitMQ, MQTT, gRPC |
 | 6 | Game servers | **Planned** | Steam protocol, GameDig integrations |
-| 7 | Push and scheduled jobs | **Partial:** token-based POST, missed heartbeat check | Timing details, failure messages, token rotation |
+| 7 | Push and scheduled jobs | **Partial:** token-based POST, per-token push rate limit, missed heartbeat check | Timing details, failure messages, token rotation |
 | 8 | Performance and analytics | **Partial:** recent heartbeat and response time | Uptime windows, trends, charts, reports and custom retention |
 | 9 | Alerts and notifications | **Partial:** GoreeCloud Notify v1 outage/recovery publish connector | Durable retries, SMTP, webhook and provider integrations |
 | 10 | Incident management | **Partial:** create/list/resolve and opt-in RSS | Incident resolve/edit, association, public publishing, automated incidents |
 | 11 | Public/private status | **Partial:** opt-in status page, incidents, maintenance, RSS | Multiple branded pages, groups, RSS, incident display, custom domains |
-| 12 | Maintenance | **Partial:** one-time global maintenance records, create/delete UI | Per-monitor scopes, recurring schedules, alert suppression |
+| 12 | Maintenance | **Partial:** one-time global maintenance records, create/delete UI and private-by-default public announcements | Per-monitor scopes, recurring schedules, alert suppression |
 | 13 | Certificates/domains | **Partial:** HTTPS TLS validation | Expiration warnings, certificate chain, domain renewals |
 | 14 | Dashboard and UI | **Partial:** GC UI-inspired responsive console | Design-token package integration, charts, full management forms, visual QA |
 | 15 | Status badges | **Partial:** opt-in SVG status badge | Uptime/ping/certificate badges |
@@ -36,7 +36,7 @@ GoreeCloud Monitor is a self-hosted, privacy-first service intelligence platform
 | 19 | Privacy/self-hosting | **Partial:** local storage, opt-in publishing | Detailed privacy policy, encrypted provider secrets |
 | 20 | Deployment/platform | **Partial:** Python service and container recipe | Native service installers, platform CI and signed releases |
 | 21 | Data storage | **Partial:** SQLite WAL and bounded history | MariaDB, migrations, retention policy controls |
-| 22 | Backup/recovery | **Planned** | Consistent snapshot utility, restore tests and secure JSON portability |
+| 22 | Backup/recovery | **Partial:** consistent SQLite snapshot utility with integrity check and no-overwrite semantics | Full restore tests, export/import, encryption and automation |
 | 23 | Organization/admin | **Partial:** list, create, pause, resume, delete | Groups, nested hierarchy, tags, bulk editing |
 | 24 | Reliability/resilience | **Partial:** bounded worker pool, retry threshold | HA design, queue-backed alert delivery, backups, telemetry |
 | 25 | GoreeCloud ecosystem | **Planned** | Explicit verified service endpoints and consent-based integration |
@@ -62,3 +62,14 @@ All items in the owner's 30-section GoreeCloud Monitor product vision form the t
 - Default deployment binds to loopback and does not publish infrastructure secrets.
 
 These are criteria, not claims of independently verified live acceptance.
+
+
+## 2026-11-04 hardening increment
+
+- Maintenance notices now require explicit publication; new and migrated legacy records default to private. The public API returns only opt-in announcements.
+- Push heartbeat submissions have a per-token rolling-minute request limit. No per-IP global denial-of-service protection or distributed rate limiting is claimed.
+- RSS incident dates use the standard RFC 2822 format.
+- Added a local online SQLite backup helper with integrity validation, restrictive file permissions, non-overwrite semantics and automated snapshot tests.
+- Added regression tests for maintenance-publication isolation, legacy database migration, push throttling and snapshot integrity.
+
+These changes are a development-stage security improvement, not a full security review or production release.

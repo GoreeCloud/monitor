@@ -51,3 +51,16 @@ The code uses the Python standard library, SQLite, HTML, CSS and JavaScript. No 
 ## GoreeCloud Notify integration
 
 Transition alerts are dispatched asynchronously from a bounded two-worker pool. The target is operator-configured using GC_NOTIFY_URL, GC_NOTIFY_TOKEN_FILE and GC_NOTIFY_TOPIC; disabled when unset. HTTPS uses a validated, pinned public destination and TLS hostname verification. Loopback HTTP to 127.0.0.1 is supported for same-host development. No third-party provider credentials are bundled. The connector is alpha and best-effort, not guaranteed notification delivery.
+
+
+## Private maintenance and schema evolution
+
+Maintenance entries now carry a public INTEGER column defaulting to zero. On application startup, existing databases without this column receive an in-place ALTER TABLE migration that preserves original records and treats them as unpublished. Public status retrieval filters for public=1. The maintenance scheduler itself remains global in this early foundation and still requires per-monitor scoping.
+
+## Push protection
+
+Each valid push-token digest receives a 120-submission rolling-minute limit in process memory. Accepted requests record heartbeat history. Denied requests return HTTP 429. Restart clears the counter and independent workers do not share it.
+
+## Backup process
+
+The optional monitor.backup module connects to SQLite's online-backup API with the source database opened read-only. It verifies PRAGMA integrity_check on the snapshot, stores an owner-restricted temporary file in the destination directory, atomically links to a new destination name, and reports a SHA-256 digest. Existing files are not overwritten. The helper does not provide restore automation, encryption, offsite storage or schedules. Follow [OPERATIONS.md](OPERATIONS.md) for cautious recovery.

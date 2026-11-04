@@ -104,14 +104,18 @@ function drawRecords(view) {
     start.setAttribute("aria-label","Maintenance starts");
     end.setAttribute("aria-label","Maintenance ends");
     pair.append(start,end);form.append(pair);
+    const row = el("label","record-checkbox");
+    publish = el("input"); publish.type="checkbox";
+    row.append(publish,el("span","","Publish maintenance details on the public status page"));
+    form.append(row);
   }
   const btn=el("button","primary",isIncident?"Create incident →":"Schedule →");
   btn.type="submit";form.append(btn);
   form.onsubmit=async event=>{
     event.preventDefault();
     let body = {title:title.value.trim(),description:description.value.trim()};
-    if(isIncident) body.public=publish.checked;
-    else {
+    body.public=publish.checked;
+    if(!isIncident) {
       const a=new Date(start.value),b=new Date(end.value);
       if(Number.isNaN(a.getTime())||Number.isNaN(b.getTime())||b<=a) {
         message("Please select a valid maintenance window.");return;

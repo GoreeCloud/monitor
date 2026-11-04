@@ -10,7 +10,7 @@
 
 1. Add integration tests proving HTTP connections remain pinned to validated DNS results with correct TLS SNI and certificate validation.
 2. Fix and validate any CI errors, add automated HTTP integration checks, and verify a container image build.
-3. Add comprehensive authenticated API error cases, push request throttling, mutation audit logs and administrative password rotation.
+3. Expand authenticated API edge-case coverage, distributed push/request throttling, mutation audit logs and administrative password rotation.
 4. Integrate published GC UI design tokens and components; perform screenshot-led responsive and keyboard audits.
 5. Harden the optional GoreeCloud Notify connector and add durable retries, event deduplication, channel-level maintenance suppression, SMTP and generic webhook notifications.
 
@@ -28,7 +28,7 @@
 - Multiple branded public status pages with incident timeline and RSS.
 - Harden the initial Prometheus-format metrics, SVG status badge and RSS endpoints; add a versioned API and integration guides.
 - Monitor tags, grouping, advanced filtering and bulk editing.
-- Tested backup/restore and migration tooling.
+- Extend consistent backup snapshots with isolated restore testing, verified migrations and optional encrypted/offsite retention.
 
 ## Long-term
 
@@ -40,3 +40,11 @@
 ## Exit criteria
 
 Every capability must have a documented definition, relevant tests, safety review, secure defaults, accurate implementation-state documentation and appropriate platform runtime verification before being called stable.
+
+
+## Verified hardening priorities (2026-11-04)
+
+- Validate that maintenance notices remain unpublished unless explicitly selected, including automatic migration of existing records.
+- Validate push throttling behavior under burst and restart conditions.
+- Exercise backup creation on a real SQLite database and restore the resulting snapshot on isolated scratch storage.
+- Add a CI database migration/backup matrix and a Docker build check once appropriate runner support is confirmed.

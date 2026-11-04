@@ -160,6 +160,58 @@ class HttpIntegrationTests(unittest.TestCase):
             self.call("POST","/push/"+token,{"status":"up"})
             self.assertEqual(submit.call_count,2)
 
+    def test_maintenance_is_private_by_default(self):
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        start = (now + timedelta(hours=1)).isoformat()
+        end = (now + timedelta(hours=2)).isoformat()
+        cookie, csrf = self.login()
+        private = {"title": "Private infrastructure work", "description": "Private host names",
+                   "starts_at": start, "ends_at": end}
+        status, _, _ = self.call("POST", "/api/maintenance", private, cookie, csrf)
+        self.assertEqual(status, 201)
+        public = json.loads(self.call("GET", "/api/public")[1])
+        self.assertEqual(public["maintenance"], [])
+        published = {**private, "title": "Public maintenance", "public": True}
+        self.assertEqual(self.call("POST", "/api/maintenance", published, cookie, csrf)[0], 201)
+        public = json.loads(self.call("GET", "/api/public")[1])
+        self.assertEqual([item["title"] for item in public["maintenance"]], ["Public maintenance"])
+        self.assertNotIn(b"Private host names", self.call("GET", "/api/public")[1])
+
+    def test_schema_migrates_maintenance_to_private(self):
+        with server.db() as con:
+            con.execute("DROP TABLE maintenance")
+            con.execute("""CREATE TABLE maintenance (
+                id INTEGER PRIMARY KEY, title TEXT NOT NULL,
+                description TEXT NOT NULL, starts_at TEXT NOT NULL,
+                ends_at TEXT NOT NULL, created_at TEXT NOT NULL)""")
+            con.execute("""INSERT INTO maintenance
+                (title,description,starts_at,ends_at,created_at)
+                VALUES('Legacy maintenance','Sensitive notes','2099-01-01T00:00:00+00:00',
+                       '2099-01-01T01:00:00+00:00','2026-11-04T00:00:00+00:00')""")
+        server.initialize()
+        with server.db() as con:
+            row = con.execute("SELECT title,description,public FROM maintenance").fetchone()
+        self.assertEqual(row["title"], "Legacy maintenance")
+        self.assertEqual(row["description"], "Sensitive notes")
+        self.assertEqual(row["public"], 0)
+        self.assertEqual(json.loads(self.call("GET", "/api/public")[1])["maintenance"], [])
+
+    def test_push_is_rate_limited(self):
+        cookie, csrf = self.login()
+        _, body, _ = self.call("POST", "/api/monitors",
+                               {"name": "Rate-limited job", "kind": "push"}, cookie, csrf)
+        monitor = json.loads(body)
+        url = "/push/" + monitor["push_token"]
+        with patch.object(server, "PUSH_RATE_LIMIT", 2):
+            self.assertEqual(self.call("POST", url, {"status": "up"})[0], 200)
+            self.assertEqual(self.call("POST", url, {"status": "up"})[0], 200)
+            self.assertEqual(self.call("POST", url, {"status": "up"})[0], 429)
+        with server.db() as con:
+            result = con.execute("SELECT COUNT(*) FROM heartbeats WHERE monitor_id=?",
+                                 (monitor["id"],)).fetchone()[0]
+        self.assertEqual(result, 2)
+
     def test_pinned_http_connection(self):
         # The chosen target is a hostname absent from DNS; the socket must use
         # the explicitly validated address supplied by the policy layer.

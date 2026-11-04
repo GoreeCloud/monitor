@@ -11,10 +11,10 @@ GoreeCloud Monitor is a privacy-first, self-hosted uptime, service-health and in
 - HTTP/HTTPS GET checks with status-code and optional keyword validation.
 - TCP port checks, DNS name resolution checks, and token-based push heartbeats.
 - Background scheduler, per-monitor intervals, timeouts and consecutive-failure thresholds.
-- SQLite WAL persistence for monitors and bounded heartbeat history.
+- SQLite WAL persistence for monitors and bounded heartbeat history; consistent non-overwriting backup utility.
 - Private authenticated administrator console with session cookie and anti-CSRF token.
 - Creation, pausing, resuming and removal of monitors; recent activity and summary cards.
-- Public status page with opt-in visibility (monitors default to private).
+- Public status page with opt-in visibility (monitors and maintenance notices default to private).
 - Manual incident creation/resolution and one-time maintenance records with dashboard controls.
 - Public incident RSS feed, opt-in SVG status badges, and protected Prometheus-format metrics.
 - Basic JSON monitoring endpoints and isolated container deployment example.
@@ -89,6 +89,7 @@ Do not publish the token; rotate by recreating the monitor if exposed.
 - [Full 30-domain product requirements](docs/PRODUCT_SPEC.md)
 - [Capabilities and acceptance scope](docs/FEATURES.md)
 - [Architecture and operations](docs/ARCHITECTURE.md)
+- [Backup, recovery and operating procedures](docs/OPERATIONS.md)
 - [Security and threat model](docs/SECURITY.md)
 - [Delivery roadmap and gaps](docs/ROADMAP.md)
 - [GoreeCloud UI](https://github.com/GoreeCloud/gc-ui)
@@ -122,3 +123,12 @@ Set these environment variables:
 - GC_NOTIFY_TOPIC: valid topic identifier (default monitor)
 
 Only confirmed DOWN and DOWN-to-UP transitions are published. Initial UP does not generate noise. Any active global maintenance window suppresses publication. Failed deliveries are not yet durably queued. Sample compose.yaml intentionally does not configure Notify credentials.
+
+
+### Consistent backup (development / local)
+
+With GC_DATA_DIR pointing to the active data directory, create an online SQLite snapshot:
+
+    python -m monitor.backup /a/preexisting/protected/directory/monitor-2026-11-04.sqlite3
+
+The destination must not already exist. The tool verifies SQLite integrity, writes a restrictive 0600 file, avoids overwriting existing backups, and returns a SHA-256 digest. Store backup media securely, verify restore in isolation, and see [operations](docs/OPERATIONS.md) for exact precautions. No automatic offsite backup or restore automation is provided.
