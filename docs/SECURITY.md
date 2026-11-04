@@ -63,3 +63,7 @@ TLS certificate probes use the same pinned-network-address policy as HTTP probes
 ## Frontend appearance and asset integrity
 
 The canonical first-party GC UI Foundations token CSS is served locally rather than fetched from a third-party CDN, reducing runtime network and supply-chain dependencies. Its release tag and source SHA are recorded in the asset header; the Apache license is bundled. The light/dark preference uses browser local storage only for appearance mode. Administrator session identifiers remain in HttpOnly cookies, push tokens are never persisted to browser storage, and the existing restrictive self-only Content Security Policy remains in force. The token integration has not yet undergone visual cross-browser acceptance.
+
+## Maintenance notification isolation
+
+A maintenance window scoped to a monitor suppresses that monitor's transitional notifications only; unrelated monitors continue to alert. Global windows deliberately suppress all affected monitor transitions. Public status overrides remain filtered to explicitly published maintenance. A linked maintenance row is removed with its monitor to prevent accidental expansion of its scope. Operational notifications remain best-effort and should not be treated as guaranteed delivery.

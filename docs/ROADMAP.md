@@ -24,7 +24,7 @@
 
 ## Then: communication and administration
 
-- Recurring, scoped maintenance schedules and incident lifecycles.
+- Recurring, multi-monitor/group maintenance schedules, scope editing and incident lifecycles (individual monitor scoping implemented).
 - Multiple branded public status pages with incident timeline and RSS.
 - Harden the initial Prometheus-format metrics, SVG status badge and RSS endpoints; add a versioned API and integration guides.
 - Monitor tags, grouping, advanced filtering and bulk editing; improve edit permissions and lifecycle audit trails.

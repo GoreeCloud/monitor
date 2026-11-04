@@ -90,3 +90,7 @@ An additive SQLite migration creates `warning_days INTEGER NOT NULL DEFAULT 14` 
 ## GoreeCloud UI token dependency
 
 The canonical first-party token stylesheet is copied from the immutable foundations-v1.0.1 release tag of GoreeCloud UI, with the original source blob SHA documented in web/gc-ui-tokens.css and Apache-2.0 license text at LICENSES/GC-UI-APACHE-2.0.txt. The runtime serves /assets/gc-ui-tokens.css before the Monitor-owned component layout styles. Monitor does not load external fonts, stylesheets or a remote theme API. The browser theme controller selects GC UI data-mode and data-accent attributes. Only appearance mode is persisted to browser local storage; no session or monitoring tokens are stored there. Integration is limited to semantic tokens pending component-level migration and responsive visual QA.
+
+## Maintenance scopes
+
+The maintenance table adds nullable monitor_id with a foreign key to monitors(id) and ON DELETE CASCADE. A null value represents global scope; a nonnull value limits status overrides and event-suppression decisions to that monitor. The API validates IDs before insertion; existing maintenance rows migrate to the global default without losing published/private status. Deleting a monitor removes windows explicitly scoped to that monitor. Public status uses the same matching rules, but additionally filters to maintenance explicitly marked public. One-time scheduling remains the only implemented maintenance recurrence mode.

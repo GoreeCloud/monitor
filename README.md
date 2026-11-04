@@ -19,7 +19,7 @@ GoreeCloud Monitor is a privacy-first, self-hosted uptime, service-health and in
 - One-time push token rotation with immediate revocation of the previous heartbeat URL.
 - Public status page with opt-in visibility (monitors and maintenance notices default to private).
 - GoreeCloud UI Foundations 1.0.1 semantic tokens integrated locally, with persisted light/dark appearance controls.
-- Manual incident creation/resolution and one-time maintenance records with dashboard controls.
+- Manual incident creation/resolution and one-time maintenance records scoped to one monitor or all services.
 - Public incident RSS feed, opt-in SVG status badges, and protected Prometheus-format metrics.
 - Basic JSON monitoring endpoints and isolated container deployment example.
 - Optional authenticated integration with the existing GoreeCloud Notify publish API.
@@ -147,3 +147,7 @@ Monitor types are immutable after creation. Changing a health-check target or HT
 Create a **TLS certificate** monitor with target `example.com:443` and a warning threshold of 0–365 days (default 14). The probe pins a validated target address, negotiates TLS with the configured hostname using the system trust store, and reports a failure when validation fails or the certificate enters its warning window. Configure a notification destination separately to receive alerts; the feature does not implement registrar/domain-expiration or certificate-chain inventories.
 
 - [GoreeCloud UI conformance and provenance](docs/UI.md)
+
+### Maintenance scope
+
+When scheduling maintenance, select an affected monitor or leave the scope as **All monitored services**. Service statuses and optional GoreeCloud Notify outage suppression apply only to the selected monitor when a scope is provided. Published maintenance remains opt-in. Removing a monitor also removes maintenance windows explicitly linked to it; existing legacy maintenance records migrate to global scope.

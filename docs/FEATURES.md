@@ -26,7 +26,7 @@ GoreeCloud Monitor is a self-hosted, privacy-first service intelligence platform
 | 9 | Alerts and notifications | **Partial:** GoreeCloud Notify v1 outage/recovery publish connector | Durable retries, SMTP, webhook and provider integrations |
 | 10 | Incident management | **Partial:** create/list/resolve and opt-in RSS | Incident resolve/edit, association, public publishing, automated incidents |
 | 11 | Public/private status | **Partial:** opt-in status page, incidents, maintenance, RSS | Multiple branded pages, groups, RSS, incident display, custom domains |
-| 12 | Maintenance | **Partial:** one-time global maintenance records, create/delete UI and private-by-default public announcements | Per-monitor scopes, recurring schedules, alert suppression |
+| 12 | Maintenance | **Partial:** one-time global or monitor-scoped maintenance, create/delete UI, selective suppression and private-by-default public announcements | Per-monitor scopes, recurring schedules, alert suppression |
 | 13 | Certificates/domains | **Partial:** verified TLS hostname/chain check, configurable certificate-expiry warning monitor | Certificate details/badges, domain expiry and renewals |
 | 14 | Dashboard and UI | **Partial:** pinned GC UI Foundations tokens, responsive console and light/dark appearance controls | Component migration, charts, complete management forms and visual QA |
 | 15 | Status badges | **Partial:** opt-in SVG status badge | Uptime/ping/certificate badges |
@@ -85,3 +85,7 @@ Added a dedicated `tls` monitor accepting `host:port`. It verifies the TLS peer 
 ## GoreeCloud UI integration increment (2026-11-04)
 
 The Monitor frontend consumes a local, pinned copy of the Apache-2.0 GoreeCloud UI Foundations 1.0.1 semantic token stylesheet from the canonical GoreeCloud/gc-ui tagged release. The global Canvas/Surface/Lens, typography, motion and accent roles now use canonical token values instead of a separate token authority. Both the administrative console and public status page provide saved light/dark appearance selection. HTML and CSS are served locally, avoiding an external runtime CDN requirement. This is token-level integration, not verified adoption of all GC UI components or full visual acceptance.
+
+## Scoped maintenance increment (2026-11-04)
+
+One-time windows can target a single monitor or all monitors. Monitoring status and optional GoreeCloud Notify suppression now respect selected scope. Public status continues to require explicit publication. Deleting a monitor cascades to maintenance windows scoped to that monitor instead of silently converting them to global suppression. The SQLite schema adds a nullable monitor reference with an additive migration; prior windows retain global scope. Recurring rules and multi-monitor groups remain planned.

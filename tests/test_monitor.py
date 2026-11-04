@@ -400,6 +400,66 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertEqual(json.loads(self.call("GET", "/api/public")[1])["monitors"][0]["display_state"], "paused")
         self.assertEqual(json.loads(self.call("GET", "/api/monitors", cookie=cookie)[1])["monitors"][0]["display_state"], "paused")
 
+    def test_scoped_maintenance_only_suppresses_affected_service(self):
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        cookie, csrf = self.login()
+        _, first, _ = self.call("POST", "/api/monitors",
+             {"name": "One", "kind": "push", "public": True}, cookie, csrf)
+        _, second, _ = self.call("POST", "/api/monitors",
+             {"name": "Two", "kind": "push", "public": True}, cookie, csrf)
+        one, two = json.loads(first)["id"], json.loads(second)["id"]
+        window = {"title": "Only One", "public": True, "monitor_id": one,
+                  "starts_at": (now - timedelta(minutes=5)).isoformat(),
+                  "ends_at": (now + timedelta(minutes=45)).isoformat()}
+        status, _, _ = self.call("POST", "/api/maintenance", window, cookie, csrf)
+        self.assertEqual(status, 201)
+        public = {m["id"]:m["display_state"] for m in
+                  json.loads(self.call("GET","/api/public")[1])["monitors"]}
+        self.assertEqual(public[one], "maintenance")
+        self.assertEqual(public[two], "pending")
+        self.assertTrue(server.active_maintenance(monitor_id=one))
+        self.assertFalse(server.active_maintenance(monitor_id=two))
+        with patch.object(server.NOTIFY_POOL, "submit") as dispatch:
+            for _ in range(2):
+                server.save_heartbeat(one, "down", None, "Failure")
+                server.save_heartbeat(two, "down", None, "Failure")
+            self.assertEqual(dispatch.call_count, 1)
+            self.assertEqual(dispatch.call_args.args[0].__name__, "send_notify_event")
+            self.assertEqual(dispatch.call_args.args[1], two)
+        admin = {m["id"]:m["display_state"] for m in
+                 json.loads(self.call("GET","/api/monitors",cookie=cookie)[1])["monitors"]}
+        self.assertEqual(admin[one], "maintenance")
+        self.assertEqual(admin[two], "down")
+        self.assertEqual(self.call("DELETE","/api/monitors/%d" % one,
+                                   cookie=cookie,csrf=csrf)[0], 200)
+        self.assertEqual(json.loads(self.call("GET", "/api/maintenance",
+                                             cookie=cookie)[1])["maintenance"], [])
+
+    def test_scoped_maintenance_validates_monitor_id(self):
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        cookie, csrf = self.login()
+        base = {"title":"Controlled work", "starts_at":
+                (now + timedelta(minutes=2)).isoformat(),
+                "ends_at":(now + timedelta(hours=1)).isoformat()}
+        for invalid in ("1", True, -1, 0, 999999):
+            status, _, _ = self.call("POST","/api/maintenance",
+                                     {**base,"monitor_id":invalid},cookie,csrf)
+            self.assertEqual(status,400)
+
+    def test_scoped_maintenance_column_migrates_as_global(self):
+        with server.db() as con:
+            con.execute("ALTER TABLE maintenance DROP COLUMN monitor_id")
+            con.execute("""INSERT INTO maintenance(title,description,starts_at,ends_at,created_at,public)
+                        VALUES('Existing schedule','',?, ?, ?,0)""",
+                        ("2099-01-01T00:00:00+00:00",
+                         "2099-01-01T01:00:00+00:00", server.utcnow()))
+        server.initialize()
+        with server.db() as con:
+            row = con.execute("SELECT title,monitor_id FROM maintenance").fetchone()
+            self.assertEqual((row["title"], row["monitor_id"]), ("Existing schedule", None))
+
     def test_private_maintenance_does_not_change_public_state(self):
         from datetime import datetime, timedelta, timezone
         now = datetime.now(timezone.utc)

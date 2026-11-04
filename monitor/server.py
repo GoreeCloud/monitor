@@ -105,7 +105,8 @@ def initialize():
         CREATE TABLE IF NOT EXISTS maintenance (
           id INTEGER PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL,
           starts_at TEXT NOT NULL, ends_at TEXT NOT NULL, created_at TEXT NOT NULL,
-          public INTEGER NOT NULL DEFAULT 0
+          public INTEGER NOT NULL DEFAULT 0,
+          monitor_id INTEGER REFERENCES monitors(id) ON DELETE CASCADE
         );
         """)
         # Existing installations predate the opt-in publication flag.
@@ -113,6 +114,8 @@ def initialize():
         columns = {r["name"] for r in con.execute("PRAGMA table_info(maintenance)")}
         if "public" not in columns:
             con.execute("ALTER TABLE maintenance ADD COLUMN public INTEGER NOT NULL DEFAULT 0")
+        if "monitor_id" not in columns:
+            con.execute("ALTER TABLE maintenance ADD COLUMN monitor_id INTEGER REFERENCES monitors(id) ON DELETE CASCADE")
         monitor_columns = {r["name"] for r in con.execute("PRAGMA table_info(monitors)")}
         if "warning_days" not in monitor_columns:
             con.execute("ALTER TABLE monitors ADD COLUMN warning_days INTEGER NOT NULL DEFAULT 14")
@@ -306,7 +309,7 @@ def save_heartbeat(monitor_id: int, state: str, latency: float | None, detail: s
         if transition:
             name_row = con.execute("SELECT name FROM monitors WHERE id=?", (monitor_id,)).fetchone()
             monitor_name = name_row["name"] if name_row else "Unknown"
-    if transition and not active_maintenance():
+    if transition and not active_maintenance(monitor_id=monitor_id):
         NOTIFY_POOL.submit(send_notify_event, monitor_id, monitor_name, effective)
 
 
@@ -368,13 +371,17 @@ def send_notify_event(monitor_id: int, name: str, state: str):
 NOTIFY_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="notify")
 
 
-def active_maintenance(public_only: bool = False) -> bool:
+def active_maintenance(public_only: bool = False, monitor_id: int | None = None) -> bool:
     now = utcnow()
     statement = "SELECT 1 FROM maintenance WHERE starts_at<=? AND ends_at>=?"
+    params: list = [now, now]
     if public_only:
         statement += " AND public=1"
+    if monitor_id is not None:
+        statement += " AND (monitor_id IS NULL OR monitor_id=?)"
+        params.append(monitor_id)
     with db() as con:
-        return con.execute(statement + " LIMIT 1", (now, now)).fetchone() is not None
+        return con.execute(statement + " LIMIT 1", params).fetchone() is not None
 
 
 def monitor_list(public: bool = False) -> list[dict]:
@@ -383,13 +390,16 @@ def monitor_list(public: bool = False) -> list[dict]:
         if public:
             sql = "SELECT id,name,kind,public,active,state,last_check,latency_ms FROM monitors WHERE public=1"
         rows = [dict(x) for x in con.execute(sql + " ORDER BY id DESC").fetchall()]
-        maintenance_visible = active_maintenance(public_only=public)
+        statement = "SELECT monitor_id FROM maintenance WHERE starts_at<=? AND ends_at>=?"
+        if public:
+            statement += " AND public=1"
+        active_scopes = {r["monitor_id"] for r in con.execute(statement, (utcnow(), utcnow()))}
         for row in rows:
             row["public"] = bool(row["public"])
             row["active"] = bool(row["active"])
             if not row["active"]:
                 row["display_state"] = "paused"
-            elif maintenance_visible:
+            elif None in active_scopes or row["id"] in active_scopes:
                 row["display_state"] = "maintenance"
             else:
                 row["display_state"] = row["state"]
@@ -762,12 +772,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     raise ValueError("Maintenance times must have time zones and end after start")
                 if type(body.get("public", False)) is not bool:
                     raise ValueError("Maintenance public flag must be a boolean")
+                scope = body.get("monitor_id")
+                if scope is not None and (type(scope) is not int or scope < 1):
+                    raise ValueError("Maintenance monitor ID must be a positive integer")
                 with db() as con:
-                    cur = con.execute("INSERT INTO maintenance(title,description,starts_at,ends_at,created_at,public) VALUES(?,?,?,?,?,?)",
-                                      (title, str(body.get("description", ""))[:2000],
-                                       a.astimezone(timezone.utc).isoformat(timespec="seconds"),
-                                       b.astimezone(timezone.utc).isoformat(timespec="seconds"), utcnow(),
-                                       int(body.get("public", False))))
+                    if scope is not None and con.execute(
+                            "SELECT 1 FROM monitors WHERE id=?", (scope,)).fetchone() is None:
+                        raise ValueError("Maintenance monitor does not exist")
+                    cur = con.execute("""INSERT INTO maintenance
+                        (title,description,starts_at,ends_at,created_at,public,monitor_id)
+                        VALUES(?,?,?,?,?,?,?)""",
+                        (title, str(body.get("description", ""))[:2000],
+                         a.astimezone(timezone.utc).isoformat(timespec="seconds"),
+                         b.astimezone(timezone.utc).isoformat(timespec="seconds"), utcnow(),
+                         int(body.get("public", False)), scope))
                 return self.send(201, {"id": cur.lastrowid})
             return self.send(404, {"error": "Not found"})
         except (ValueError, TypeError, OverflowError) as exc:

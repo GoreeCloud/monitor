@@ -113,7 +113,7 @@ function drawRecords(view) {
   description.placeholder = "Add details (optional)";
   description.setAttribute("aria-label", "Details");
   form.append(heading,title,description);
-  let start, end, publish;
+  let start, end, publish, scope;
   if (isIncident) {
     const row = el("label","record-checkbox");
     publish = el("input"); publish.type="checkbox";
@@ -127,6 +127,20 @@ function drawRecords(view) {
     start.setAttribute("aria-label","Maintenance starts");
     end.setAttribute("aria-label","Maintenance ends");
     pair.append(start,end);form.append(pair);
+    const scopeLabel = el("label","", "Affected services");
+    scopeLabel.htmlFor = "maintenance-scope";
+    scope = el("select");
+    scope.id = "maintenance-scope";
+    scope.setAttribute("aria-label", "Affected services");
+    const all = el("option","", "All monitored services");
+    all.value = "";
+    scope.append(all);
+    for (const m of [...state.monitors].sort((a,b)=>a.name.localeCompare(b.name))) {
+      const option = el("option","", m.name);
+      option.value = String(m.id);
+      scope.append(option);
+    }
+    form.append(scopeLabel, scope);
     const row = el("label","record-checkbox");
     publish = el("input"); publish.type="checkbox";
     row.append(publish,el("span","","Publish maintenance details on the public status page"));
@@ -144,6 +158,7 @@ function drawRecords(view) {
         message("Please select a valid maintenance window.");return;
       }
       body.starts_at=a.toISOString();body.ends_at=b.toISOString();
+      if (scope.value) body.monitor_id = Number(scope.value);
     }
     try {
       await request("/api/"+(isIncident?"incidents":"maintenance"),{method:"POST",body:JSON.stringify(body)});
@@ -161,7 +176,11 @@ function drawRecords(view) {
     const item=el("div","record-item");
     const copy=el("div","record-copy");
     copy.append(el("strong","",record.title),el("p","",record.description||"No additional details."));
-    copy.append(el("small","",isIncident?activityTime(record.created_at):activityTime(record.starts_at)+" — "+activityTime(record.ends_at)));
+    const scopeName = record.monitor_id
+      ? (state.monitors.find(m=>m.id===record.monitor_id)?.name || "Unavailable monitor")
+      : "All monitored services";
+    copy.append(el("small","",isIncident?activityTime(record.created_at):
+      activityTime(record.starts_at)+" — "+activityTime(record.ends_at)+" · "+scopeName));
     item.append(copy);
     if(isIncident) {
       item.append(statusChip(record.status));
