@@ -12,7 +12,7 @@
 2. Fix and validate any CI errors, add automated HTTP integration checks, and verify a container image build.
 3. Add comprehensive authenticated API error cases, push request throttling, mutation audit logs and administrative password rotation.
 4. Integrate published GC UI design tokens and components; perform screenshot-led responsive and keyboard audits.
-5. Implement secure webhook + SMTP notifications with durable retry queues, event deduplication and maintenance-aware suppression.
+5. Harden the optional GoreeCloud Notify connector and add durable retries, event deduplication, channel-level maintenance suppression, SMTP and generic webhook notifications.
 
 ## Next: monitoring depth
 

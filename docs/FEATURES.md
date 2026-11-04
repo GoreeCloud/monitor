@@ -23,7 +23,7 @@ GoreeCloud Monitor is a self-hosted, privacy-first service intelligence platform
 | 6 | Game servers | **Planned** | Steam protocol, GameDig integrations |
 | 7 | Push and scheduled jobs | **Partial:** token-based POST, missed heartbeat check | Timing details, failure messages, token rotation |
 | 8 | Performance and analytics | **Partial:** recent heartbeat and response time | Uptime windows, trends, charts, reports and custom retention |
-| 9 | Alerts and notifications | **Planned** | Secure outbound webhook and SMTP first, then integrations |
+| 9 | Alerts and notifications | **Partial:** GoreeCloud Notify v1 outage/recovery publish connector | Durable retries, SMTP, webhook and provider integrations |
 | 10 | Incident management | **Partial:** create/list/resolve and opt-in RSS | Incident resolve/edit, association, public publishing, automated incidents |
 | 11 | Public/private status | **Partial:** opt-in status page, incidents, maintenance, RSS | Multiple branded pages, groups, RSS, incident display, custom domains |
 | 12 | Maintenance | **Partial:** one-time global maintenance records, create/delete UI | Per-monitor scopes, recurring schedules, alert suppression |

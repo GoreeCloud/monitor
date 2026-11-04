@@ -31,10 +31,11 @@ Monitoring requests can access infrastructure endpoints and are therefore SSRF-s
 2. **No TOTP or advanced account security:** one operator password only.
 3. **No production TLS terminator shipped:** HTTPS proxy configuration, headers and security review are deployment responsibilities.
 4. **No comprehensive rate limits for push tokens:** tokens are high entropy but should have per-token throttling, limits and abuse monitoring.
-5. **No secret-at-rest encryption:** protect the OS, secret files, SQLite and backup media.
-6. **No audit trail or security-event alerting:** administrative changes lack dedicated tamper-evident event records.
-7. **No external security audit or live penetration test.**
-8. **No formal backup restoration validation or upgrade regression tests.**
+5. **Optional Notify credentials:** keep GC_NOTIFY_TOKEN_FILE in protected storage, use topic-scoped publish permissions and HTTPS in non-loopback configurations. Delivery is best-effort; operators must not configure untrusted endpoints.
+6. **No secret-at-rest encryption:** protect the OS, secret files, SQLite and backup media.
+7. **No audit trail or security-event alerting:** administrative changes lack dedicated tamper-evident event records.
+8. **No external security audit or live penetration test.**
+9. **No formal backup restoration validation or upgrade regression tests.**
 
 ## Operational security requirements
 

@@ -35,7 +35,7 @@ Keep container service bound to 127.0.0.1 and publish through an HTTPS reverse p
 ## Operational limitations
 
 - No full Docker, network protocol or database-specific probe portfolio yet.
-- No notification delivery, escalation routing, certificate expiry alarms or domain expiry checks.
+- Optional best-effort outbound GoreeCloud Notify v1 connector; no durable alert queue, escalation routing, certificate expiry alarms or domain expiry checks.
 - Public RSS, badge and opt-in metrics endpoints are present but require runtime and security validation.
 - No SSO, RBAC, multi-tenancy or TOTP yet.
 - No stable public administrative API.
@@ -46,3 +46,8 @@ Keep container service bound to 127.0.0.1 and publish through an HTTPS reverse p
 ## Dependencies and provenance
 
 The code uses the Python standard library, SQLite, HTML, CSS and JavaScript. No Uptime Kuma source code is copied or embedded. The GC UI design language and visual authority are maintained separately in GoreeCloud/gc-ui.
+
+
+## GoreeCloud Notify integration
+
+Transition alerts are dispatched asynchronously from a bounded two-worker pool. The target is operator-configured using GC_NOTIFY_URL, GC_NOTIFY_TOKEN_FILE and GC_NOTIFY_TOPIC; disabled when unset. HTTPS uses a validated, pinned public destination and TLS hostname verification. Loopback HTTP to 127.0.0.1 is supported for same-host development. No third-party provider credentials are bundled. The connector is alpha and best-effort, not guaranteed notification delivery.

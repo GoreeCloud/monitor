@@ -18,6 +18,7 @@ GoreeCloud Monitor is a privacy-first, self-hosted uptime, service-health and in
 - Manual incident creation/resolution and one-time maintenance records with dashboard controls.
 - Public incident RSS feed, opt-in SVG status badges, and protected Prometheus-format metrics.
 - Basic JSON monitoring endpoints and isolated container deployment example.
+- Optional authenticated integration with the existing GoreeCloud Notify publish API.
 - GitHub Actions Python and JavaScript checks.
 
 ## Run locally
@@ -107,3 +108,16 @@ Original implementation authored for GoreeCloud. Uses Python, SQLite and browser
 ### Optional metrics
 
 Set GC_METRICS_TOKEN to a unique random secret of at least 24 characters. The protected /metrics endpoint then accepts Authorization: Bearer TOKEN. Do not expose the token to browsers, logs or public dashboards. Metrics contain monitor IDs, not private targets.
+
+
+### Optional GoreeCloud Notify integration
+
+GoreeCloud Monitor can submit outage and recovery events to the existing [GoreeCloud Notify](https://github.com/GoreeCloud/notify) service via its alpha publish API. This is optional best-effort integration. Neither notification delivery nor an existing deployed Notify instance is assumed.
+
+Set these environment variables:
+
+- GC_NOTIFY_URL: trusted HTTPS base URL or local-only http://127.0.0.1:8080
+- GC_NOTIFY_TOKEN_FILE: restricted file with a Notify token authorized for topic publication
+- GC_NOTIFY_TOPIC: valid topic identifier (default monitor)
+
+Only confirmed DOWN and DOWN-to-UP transitions are published. Initial UP does not generate noise. Any active global maintenance window suppresses publication. Failed deliveries are not yet durably queued. Sample compose.yaml intentionally does not configure Notify credentials.

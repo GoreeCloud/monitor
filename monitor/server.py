@@ -248,6 +248,71 @@ def save_heartbeat(monitor_id: int, state: str, latency: float | None, detail: s
         con.execute("""DELETE FROM heartbeats WHERE monitor_id=? AND id NOT IN
                     (SELECT id FROM heartbeats WHERE monitor_id=? ORDER BY id DESC LIMIT 2000)""",
                     (monitor_id, monitor_id))
+        transition = row["state"] != effective and effective in ("down", "up") and (
+            effective == "down" or row["state"] == "down")
+        if transition:
+            name_row = con.execute("SELECT name FROM monitors WHERE id=?", (monitor_id,)).fetchone()
+            monitor_name = name_row["name"] if name_row else "Unknown"
+    if transition and not active_maintenance():
+        NOTIFY_POOL.submit(send_notify_event, monitor_id, monitor_name, effective)
+
+
+def send_notify_event(monitor_id: int, name: str, state: str):
+    """Best-effort connector to GoreeCloud Notify v1. No durable delivery queue."""
+    base = os.environ.get("GC_NOTIFY_URL", "").strip()
+    token_path = os.environ.get("GC_NOTIFY_TOKEN_FILE", "").strip()
+    if not base or not token_path:
+        return
+    try:
+        parts = urlsplit(base)
+        topic = os.environ.get("GC_NOTIFY_TOPIC", "monitor")
+        if not topic or len(topic) > 64 or not all(c.isascii() and
+                (c.isalnum() or c in "_-") for c in topic):
+            return
+        if parts.path not in ("", "/") or parts.query or parts.fragment or parts.username or parts.password:
+            return
+        local = parts.scheme == "http" and parts.hostname == "127.0.0.1"
+        if parts.scheme != "https" and not local:
+            return
+        port = parts.port or (443 if parts.scheme == "https" else 80)
+        if local:
+            family, sockaddr = socket.AF_INET, ("127.0.0.1", port)
+        else:
+            result = addresses(parts.hostname, port, allow_private=False)[0]
+            family, sockaddr = result[0], result[4]
+        token = Path(token_path).read_text(encoding="utf-8").strip()
+        if len(token) < 16:
+            return
+        payload = json.dumps({
+            "title": "Monitor " + ("recovered" if state == "up" else "down"),
+            "body": name + ": " + state.upper(),
+            "priority": 3 if state == "up" else 4,
+            "tags": ["monitor", state]
+        }).encode("utf-8")
+        conn = http.client.HTTPConnection(parts.hostname, port, timeout=5)
+        sock = socket.socket(family, socket.SOCK_STREAM)
+        try:
+            sock.settimeout(5)
+            sock.connect(sockaddr)
+            conn.sock = ssl.create_default_context().wrap_socket(
+                sock, server_hostname=parts.hostname
+            ) if parts.scheme == "https" else sock
+            conn.request("POST", "/api/v1/topics/" + topic + "/messages", payload,
+                         headers={"Host": parts.netloc, "Authorization": "Bearer " + token,
+                                  "Content-Type": "application/json", "Connection": "close"})
+            resp = conn.getresponse()
+            resp.read(4096)
+            if resp.status not in (200, 201):
+                print("notify connector: non-success response", flush=True)
+        finally:
+            conn.close()
+            sock.close()
+    except Exception:
+        # Do not log endpoints or tokens.
+        print("notify connector: delivery failed", flush=True)
+
+
+NOTIFY_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="notify")
 
 
 def active_maintenance() -> bool:

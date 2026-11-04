@@ -148,6 +148,18 @@ class HttpIntegrationTests(unittest.TestCase):
         incidents=json.loads(self.call("GET","/api/incidents",cookie=cookie)[1])["incidents"]
         self.assertEqual(incidents[0]["status"],"resolved")
 
+    def test_notify_transition_only(self):
+        cookie, csrf = self.login()
+        _, body, _ = self.call("POST", "/api/monitors", {"name":"Backup job","kind":"push"},cookie,csrf)
+        token=json.loads(body)["push_token"]
+        with patch.object(server.NOTIFY_POOL,"submit") as submit:
+            self.call("POST","/push/"+token,{"status":"down"})
+            self.assertEqual(submit.call_count,0)
+            self.call("POST","/push/"+token,{"status":"down"})
+            self.assertEqual(submit.call_count,1)
+            self.call("POST","/push/"+token,{"status":"up"})
+            self.assertEqual(submit.call_count,2)
+
     def test_pinned_http_connection(self):
         # The chosen target is a hostname absent from DNS; the socket must use
         # the explicitly validated address supplied by the policy layer.
