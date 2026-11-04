@@ -8,7 +8,7 @@
 
 ## Immediate priority: secure and stabilize
 
-1. Add integration tests proving HTTP connections remain pinned to validated DNS results with correct TLS SNI and certificate validation.
+1. Expand integration tests proving HTTP connections remain pinned to validated DNS results with correct TLS SNI, certificate validation and reconfiguration race handling (configuration-revision guards implemented).
 2. Fix and validate any CI errors, add automated HTTP integration checks, and verify a container image build.
 3. Expand authenticated API edge-case coverage, distributed push/request throttling, mutation audit logs and administrative password rotation.
 4. Integrate published GC UI design tokens and components; perform screenshot-led responsive and keyboard audits.

@@ -299,6 +299,109 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertEqual(result["state"], "pending")
         self.assertIsNone(result["latency_ms"])
 
+    def test_config_revision_migrates_legacy_monitors(self):
+        with server.db() as con:
+            con.execute("ALTER TABLE monitors DROP COLUMN revision")
+            con.execute("""INSERT INTO monitors
+                (name,kind,target,interval_seconds,timeout_seconds,created_at)
+                VALUES('Legacy task','push','',60,8,?)""", (server.utcnow(),))
+        server.initialize()
+        with server.db() as con:
+            row = con.execute("SELECT name,revision FROM monitors").fetchone()
+        self.assertEqual((row["name"], row["revision"]), ("Legacy task", 1))
+
+    def test_stale_inflight_scheduled_check_cannot_replace_pending_state(self):
+        cookie, csrf = self.login()
+        _, body, _ = self.call("POST", "/api/monitors",
+                               {"name": "Slow health check", "kind": "push"}, cookie, csrf)
+        monitor_id = json.loads(body)["id"]
+        with server.db() as con:
+            before = dict(con.execute("SELECT * FROM monitors WHERE id=?",
+                                      (monitor_id,)).fetchone())
+        began, release = threading.Event(), threading.Event()
+
+        def delayed_probe(_monitor):
+            began.set()
+            if not release.wait(timeout=4):
+                raise AssertionError("Probe was not released")
+            return "up", 9.0, "Previous endpoint healthy"
+
+        scheduler = server.Scheduler()
+        with patch.object(server, "probe", side_effect=delayed_probe), \
+             patch.object(server.NOTIFY_POOL, "submit") as notifications:
+            worker = threading.Thread(target=scheduler.check, args=(before,), daemon=True)
+            worker.start()
+            try:
+                self.assertTrue(began.wait(timeout=3))
+                status, _, _ = self.call("PATCH", "/api/monitors/%d" % monitor_id,
+                                          {"name": "Renamed service"}, cookie, csrf)
+                self.assertEqual(status, 200)
+            finally:
+                release.set()
+                worker.join(timeout=5)
+            self.assertFalse(worker.is_alive())
+            notifications.assert_not_called()
+        with server.db() as con:
+            after = con.execute("SELECT state,revision FROM monitors WHERE id=?",
+                                (monitor_id,)).fetchone()
+            count = con.execute("SELECT COUNT(*) FROM heartbeats WHERE monitor_id=?",
+                                (monitor_id,)).fetchone()[0]
+        self.assertEqual(after["state"], "pending")
+        self.assertEqual(after["revision"], before["revision"] + 1)
+        self.assertEqual(count, 0)
+        self.assertTrue(server.save_heartbeat(monitor_id, "up", 9.0, "New check",
+                                              expected_revision=after["revision"]))
+
+    def test_push_token_rotated_between_lookup_and_write_is_rejected(self):
+        cookie, csrf = self.login()
+        _, body, _ = self.call("POST", "/api/monitors",
+                               {"name": "Push workflow", "kind": "push"}, cookie, csrf)
+        monitor_id = json.loads(body)["id"]
+        first_token = json.loads(body)["push_token"]
+        rotated = []
+        original = server.save_heartbeat
+
+        def rotate_before_save(*args, **kwargs):
+            if kwargs.get("expected_token_hash") and not rotated:
+                status, payload, _ = self.call(
+                    "POST", "/api/monitors/%d/rotate-token" % monitor_id,
+                    cookie=cookie, csrf=csrf)
+                self.assertEqual(status, 200)
+                rotated.append(json.loads(payload)["push_token"])
+            return original(*args, **kwargs)
+
+        with patch.object(server, "save_heartbeat", side_effect=rotate_before_save):
+            status, _, _ = self.call("POST", "/push/" + first_token,
+                                     {"status": "up"})
+        self.assertEqual(status, 404)
+        self.assertEqual(len(rotated), 1)
+        with server.db() as con:
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM heartbeats").fetchone()[0], 0)
+        self.assertEqual(self.call("POST", "/push/" + rotated[0],
+                                   {"status": "up"})[0], 200)
+
+    def test_pause_and_token_rotation_invalidate_previous_revision(self):
+        cookie, csrf = self.login()
+        _, body, _ = self.call("POST", "/api/monitors",
+                               {"name": "Revision check", "kind": "push"}, cookie, csrf)
+        monitor_id = json.loads(body)["id"]
+        with server.db() as con:
+            first = con.execute("SELECT revision FROM monitors WHERE id=?",
+                                (monitor_id,)).fetchone()[0]
+        self.assertEqual(self.call("PATCH", "/api/monitors/%d" % monitor_id,
+                                   {"active": False}, cookie, csrf)[0], 200)
+        self.assertEqual(self.call("PATCH", "/api/monitors/%d" % monitor_id,
+                                   {"active": True}, cookie, csrf)[0], 200)
+        self.assertFalse(server.save_heartbeat(monitor_id, "down", None, "Stale",
+                                               expected_revision=first))
+        self.assertEqual(self.call("POST", "/api/monitors/%d/rotate-token" % monitor_id,
+                                   cookie=cookie, csrf=csrf)[0], 200)
+        with server.db() as con:
+            current = con.execute("SELECT revision,state FROM monitors WHERE id=?",
+                                  (monitor_id,)).fetchone()
+        self.assertEqual(current["revision"], first + 3)
+        self.assertEqual(current["state"], "pending")
+
     def test_authorization_and_csrf(self):
         self.assertEqual(self.call("GET", "/api/monitors")[0],401)
         self.assertEqual(self.call("POST", "/api/login", {"password":"wrong"})[0],401)

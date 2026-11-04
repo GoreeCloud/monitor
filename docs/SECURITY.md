@@ -67,3 +67,7 @@ The canonical first-party GC UI Foundations token CSS is served locally rather t
 ## Maintenance notification isolation
 
 A maintenance window scoped to a monitor suppresses that monitor's transitional notifications only; unrelated monitors continue to alert. Global windows deliberately suppress all affected monitor transitions. Public status overrides remain filtered to explicitly published maintenance. A linked maintenance row is removed with its monitor to prevent accidental expansion of its scope. Operational notifications remain best-effort and should not be treated as guaranteed delivery.
+
+## Stale-work and secret-rotation race defense
+
+Monitor configuration has an incrementing revision. Background checks can only persist results against their dispatch-time revision. Push heartbeats validate their hash at transaction commit time, not only at initial HTTP route lookup; the SQLite writer transaction serializes with token changes. A token rotated while a request is in flight must not allow that request to record a heartbeat after revocation. These defenses are covered by direct race-condition regression tests. They do not provide a durable event outbox or full multi-instance synchronization for independently running scheduler processes.

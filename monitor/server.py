@@ -87,6 +87,7 @@ def initialize():
           timeout_seconds INTEGER NOT NULL, expected_code INTEGER NOT NULL DEFAULT 200,
           keyword TEXT NOT NULL DEFAULT '', public INTEGER NOT NULL DEFAULT 0,
           warning_days INTEGER NOT NULL DEFAULT 14,
+          revision INTEGER NOT NULL DEFAULT 1,
           active INTEGER NOT NULL DEFAULT 1, token_hash TEXT UNIQUE,
           state TEXT NOT NULL DEFAULT 'pending', last_check TEXT,
           latency_ms REAL, failures INTEGER NOT NULL DEFAULT 0,
@@ -119,6 +120,8 @@ def initialize():
         monitor_columns = {r["name"] for r in con.execute("PRAGMA table_info(monitors)")}
         if "warning_days" not in monitor_columns:
             con.execute("ALTER TABLE monitors ADD COLUMN warning_days INTEGER NOT NULL DEFAULT 14")
+        if "revision" not in monitor_columns:
+            con.execute("ALTER TABLE monitors ADD COLUMN revision INTEGER NOT NULL DEFAULT 1")
 
 
 def valid_ip(value: str, allow_private: bool = ALLOW_PRIVATE) -> bool:
@@ -289,15 +292,28 @@ def probe(m: dict) -> tuple[str, float | None, str]:
         return ("down", None, type(exc).__name__)
 
 
-def save_heartbeat(monitor_id: int, state: str, latency: float | None, detail: str):
+def save_heartbeat(monitor_id: int, state: str, latency: float | None, detail: str,
+                   expected_revision: int | None = None,
+                   expected_token_hash: str | None = None) -> bool:
+    """Commit only observations that still belong to the current monitor configuration."""
     with db() as con:
-        row = con.execute("SELECT state, failures, active FROM monitors WHERE id=?", (monitor_id,)).fetchone()
-        if row is None or not row["active"]:
-            return
+        # Serialize read/modify/write with concurrent edits and token rotations.
+        # An ordinary SELECT outside a write transaction is not race-safe.
+        con.execute("BEGIN IMMEDIATE")
+        row = con.execute("SELECT state, failures, active, revision, token_hash FROM monitors WHERE id=?",
+                          (monitor_id,)).fetchone()
+        if (row is None or not row["active"]
+                or (expected_revision is not None and row["revision"] != expected_revision)
+                or (expected_token_hash is not None and
+                    not hmac.compare_digest(row["token_hash"] or "", expected_token_hash))):
+            return False
         failures = 0 if state == "up" else row["failures"] + 1
         effective = "down" if state == "down" and failures >= 2 else ("up" if state == "up" else row["state"])
-        con.execute("""UPDATE monitors SET state=?, failures=?, latency_ms=?, last_check=? WHERE id=?""",
-                    (effective, failures, latency, utcnow(), monitor_id))
+        result = con.execute("""UPDATE monitors SET state=?, failures=?, latency_ms=?, last_check=?
+                               WHERE id=? AND active=1 AND revision=?""",
+                             (effective, failures, latency, utcnow(), monitor_id, row["revision"]))
+        if result.rowcount != 1:
+            return False
         con.execute("""INSERT INTO heartbeats(monitor_id,time,state,latency_ms,detail) VALUES(?,?,?,?,?)""",
                     (monitor_id, utcnow(), state, latency, detail[:120]))
         # Retain a bounded history in this initial implementation.
@@ -311,6 +327,7 @@ def save_heartbeat(monitor_id: int, state: str, latency: float | None, detail: s
             monitor_name = name_row["name"] if name_row else "Unknown"
     if transition and not active_maintenance(monitor_id=monitor_id):
         NOTIFY_POOL.submit(send_notify_event, monitor_id, monitor_name, effective)
+    return True
 
 
 def send_notify_event(monitor_id: int, name: str, state: str):
@@ -386,7 +403,7 @@ def active_maintenance(public_only: bool = False, monitor_id: int | None = None)
 
 def monitor_list(public: bool = False) -> list[dict]:
     with db() as con:
-        sql = "SELECT id,name,kind,target,interval_seconds,timeout_seconds,expected_code,keyword,warning_days,public,active,state,last_check,latency_ms,created_at FROM monitors"
+        sql = "SELECT id,name,kind,target,interval_seconds,timeout_seconds,expected_code,keyword,warning_days,revision,public,active,state,last_check,latency_ms,created_at FROM monitors"
         if public:
             sql = "SELECT id,name,kind,public,active,state,last_check,latency_ms FROM monitors WHERE public=1"
         rows = [dict(x) for x in con.execute(sql + " ORDER BY id DESC").fetchall()]
@@ -437,7 +454,8 @@ class Scheduler(threading.Thread):
         try:
             state, latency, detail = probe(monitor)
             if state != "pending":
-                save_heartbeat(monitor["id"], state, latency, detail)
+                save_heartbeat(monitor["id"], state, latency, detail,
+                               expected_revision=monitor["revision"])
         finally:
             with self.lock:
                 self.running.discard(monitor["id"])
@@ -468,7 +486,8 @@ class Scheduler(threading.Thread):
                         try:
                             age = (datetime.now(timezone.utc) - datetime.fromisoformat(m["last_check"])).total_seconds()
                             if age > m["interval_seconds"] * 2 and m["state"] != "down":
-                                save_heartbeat(m["id"], "down", None, "Heartbeat missed")
+                                save_heartbeat(m["id"], "down", None, "Heartbeat missed",
+                                               expected_revision=m["revision"])
                         except ValueError:
                             pass
             except Exception:
@@ -712,7 +731,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 status = body.get("status", "up")
                 if status not in ("up", "down"):
                     raise ValueError("Push status must be up or down")
-                save_heartbeat(row["id"], status, None, "Push heartbeat")
+                accepted = save_heartbeat(row["id"], status, None, "Push heartbeat",
+                                          expected_token_hash=digest)
+                if not accepted:
+                    return self.send(404, {"error": "Unknown push monitor"})
                 return self.send(200, {"ok": True})
             if not self.protected(write=True):
                 return
@@ -732,7 +754,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 mid = int(segments[3])
                 new_token = secrets.token_urlsafe(32)
                 with db() as con:
-                    cur = con.execute("""UPDATE monitors SET token_hash=?, state='pending',
+                    cur = con.execute("""UPDATE monitors SET token_hash=?, state='pending', revision=revision+1,
                         failures=0, latency_ms=NULL, last_check=NULL
                         WHERE id=? AND kind='push'""",
                         (hashlib.sha256(new_token.encode()).hexdigest(), mid))
@@ -816,7 +838,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if type(body["active"]) is not bool:
                     raise ValueError("Expected boolean active state")
                 with db() as con:
-                    cur = con.execute("UPDATE monitors SET active=? WHERE id=?", (int(body["active"]), mid))
+                    cur = con.execute("UPDATE monitors SET active=?, revision=revision+1 WHERE id=?", (int(body["active"]), mid))
                 return self.send(200 if cur.rowcount else 404, {"ok": bool(cur.rowcount)})
             allowed = {"name", "target", "interval_seconds", "timeout_seconds",
                        "expected_code", "keyword", "warning_days", "public"}
@@ -837,6 +859,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 changes = ", ".join(key + "=?" for key in validated)
                 if reset:
                     changes += ", state='pending', failures=0, latency_ms=NULL, last_check=NULL"
+                changes += ", revision=revision+1"
                 con.execute("UPDATE monitors SET " + changes + " WHERE id=?",
                             (*validated.values(), mid))
             return self.send(200, {"ok": True, "reset": reset})

@@ -12,6 +12,7 @@ GoreeCloud Monitor is a privacy-first, self-hosted uptime, service-health and in
 - Dedicated TLS certificate validity and approaching-expiration checks with configurable warning days.
 - TCP port checks, DNS name resolution checks, and token-based push heartbeats.
 - Background scheduler, per-monitor intervals, timeouts and consecutive-failure thresholds.
+- Configuration-revision guarded heartbeat writes; stale in-flight checks are discarded after monitor edits, pause/resume or push-token rotation.
 - SQLite WAL persistence for monitors and bounded heartbeat history; consistent non-overwriting backup utility.
 - Private authenticated administrator console with session cookie and anti-CSRF token.
 - Sample-based 24-hour check success rates, labeled distinctly from uptime.

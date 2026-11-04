@@ -89,3 +89,7 @@ The Monitor frontend consumes a local, pinned copy of the Apache-2.0 GoreeCloud 
 ## Scoped maintenance increment (2026-11-04)
 
 One-time windows can target a single monitor or all monitors. Monitoring status and optional GoreeCloud Notify suppression now respect selected scope. Public status continues to require explicit publication. Deleting a monitor cascades to maintenance windows scoped to that monitor instead of silently converting them to global suppression. The SQLite schema adds a nullable monitor reference with an additive migration; prior windows retain global scope. Recurring rules and multi-monitor groups remain planned.
+
+## Check/result concurrency protection — November 4, 2026
+
+Each monitor stores a configuration revision. Editing monitor settings, changing active state or rotating a push credential advances that revision. Scheduled checks record the revision when dispatched, and late results from an older revision are discarded. Push submissions are checked against the current stored secret digest when their heartbeat is committed, preventing a request authorized under an earlier token from writing after rotation. Heartbeat read/modify/write operations use a short SQLite immediate transaction to serialize with configuration mutations, avoiding stale-state overwrite and lost failure-counter updates. Additive migration initializes revision 1 for preexisting monitors. Regression tests cover in-flight scheduled work, rotation during a push request, legacy schema migration and pause/resume invalidation.
