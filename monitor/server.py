@@ -543,7 +543,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         names = {"/": ("web/index.html", "text/html; charset=utf-8"),
                  "/status": ("web/index.html", "text/html; charset=utf-8"),
                  "/assets/app.js": ("web/app.js", "application/javascript; charset=utf-8"),
-                 "/assets/style.css": ("web/style.css", "text/css; charset=utf-8")}
+                 "/assets/style.css": ("web/style.css", "text/css; charset=utf-8"),
+                 "/assets/gc-ui-tokens.css": ("web/gc-ui-tokens.css", "text/css; charset=utf-8")}
         if path not in names:
             return self.send(404, {"error": "Not found"})
         name, mime = names[path]
@@ -568,7 +569,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.send(200, {"ready": True})
             except sqlite3.Error:
                 return self.send(503, {"ready": False})
-        if path in ("/", "/status", "/assets/app.js", "/assets/style.css"):
+        if path in ("/", "/status", "/assets/app.js", "/assets/style.css", "/assets/gc-ui-tokens.css"):
             return self.static(path)
         if path == "/api/public":
             with db() as con:

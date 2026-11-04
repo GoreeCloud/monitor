@@ -59,3 +59,7 @@ The admin API supports one-time push token rotation behind session authenticatio
 ## TLS monitor security notes
 
 TLS certificate probes use the same pinned-network-address policy as HTTP probes. A Python standard-library verification context checks system-trust CA chains and the requested hostname via SNI. Do not disable certificate verification to force a passing result. Expiration windows represent configured warning policy, not evidence of automated renewal. Private network targets must be explicitly enabled, and existing protections against loopback/link-local/reserved endpoints remain in effect. Certificate error output is intentionally summarized rather than retaining raw private connection details.
+
+## Frontend appearance and asset integrity
+
+The canonical first-party GC UI Foundations token CSS is served locally rather than fetched from a third-party CDN, reducing runtime network and supply-chain dependencies. Its release tag and source SHA are recorded in the asset header; the Apache license is bundled. The light/dark preference uses browser local storage only for appearance mode. Administrator session identifiers remain in HttpOnly cookies, push tokens are never persisted to browser storage, and the existing restrictive self-only Content Security Policy remains in force. The token integration has not yet undergone visual cross-browser acceptance.

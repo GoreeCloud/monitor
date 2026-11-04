@@ -170,6 +170,28 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertEqual(status, 200)
         return headers["Set-Cookie"].split(";")[0], json.loads(payload)["csrf"]
 
+    def test_gc_ui_foundation_assets_and_theme_controls(self):
+        status, page, headers = self.call("GET", "/")
+        self.assertEqual(status, 200)
+        self.assertTrue(headers["Content-Type"].startswith("text/html"))
+        self.assertIn(b"/assets/gc-ui-tokens.css", page)
+        self.assertIn(b'data-accent="iris"', page)
+        self.assertIn(b'id="theme-toggle"', page)
+        self.assertIn(b'id="public-theme-toggle"', page)
+        status, tokens, headers = self.call("GET", "/assets/gc-ui-tokens.css")
+        self.assertEqual(status, 200)
+        self.assertTrue(headers["Content-Type"].startswith("text/css"))
+        self.assertIn(b"--gc-radius-md", tokens)
+        self.assertIn(b"--gc-lens-fill", tokens)
+        self.assertIn(b"foundations-v1.0.1", tokens)
+        status, app, _ = self.call("GET", "/assets/app.js")
+        self.assertEqual(status, 200)
+        self.assertIn(b"function initTheme()", app)
+        self.assertIn(b"gc-monitor-theme", app)
+        status, status_page, _ = self.call("GET", "/status")
+        self.assertEqual(status, 200)
+        self.assertIn(b'id="public-theme-toggle"', status_page)
+
     def test_readiness_requires_working_database(self):
         self.assertEqual(self.call("GET", "/healthz")[0], 200)
         status, data, _ = self.call("GET", "/readyz")

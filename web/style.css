@@ -1,5 +1,9 @@
-:root{
-  color-scheme:dark;--gc-canvas:#090f1d;--gc-surface:#121b30;--gc-surface-tonal:#19253b;--gc-text:#f2f5ff;--gc-text-soft:#98a5bd;--gc-outline:rgba(186,204,240,.105);--gc-brand:#9ba2ff;--gc-brand-strong:#716de8;--gc-positive:#61dfb0;--gc-negative:#ff8196;--gc-warning:#ffd08c;--gc-lens:rgba(20,29,48,.8);--radius:20px;font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif
+:root {
+  --gc-brand-strong: #716de8;
+  --gc-warning: #ffd08c;
+  --gc-lens: var(--gc-lens-fill);
+  --radius: var(--gc-radius-md);
+  font-family: var(--gc-font);
 }
 *{box-sizing:border-box}html{min-height:100%;background:var(--gc-canvas)}body{margin:0;min-height:100vh;color:var(--gc-text);background:radial-gradient(ellipse 85% 48% at 56% -18%,rgba(74,66,180,.19),transparent 76%),var(--gc-canvas)}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--gc-brand);outline-offset:3px}button:disabled{opacity:.55;cursor:not-allowed}a{color:inherit;text-decoration:none}[hidden]{display:none!important}
 .ambient{pointer-events:none;position:fixed;z-index:0;border-radius:100%;filter:blur(90px);opacity:.23}.ambient-one{width:350px;height:400px;right:6%;top:15%;background:#46439f}.ambient-two{width:270px;height:250px;right:37%;top:65%;background:#276e85;opacity:.11}
@@ -34,3 +38,95 @@ dialog{background:linear-gradient(155deg,#1e2b45,#111b2e);color:var(--gc-text);b
 .row-actions {flex-wrap:wrap;justify-content:flex-end;max-width:78px;}
 @media (min-width:1121px) {.row-actions {max-width:145px;}}
 #http-options[hidden] {display:none;}
+
+
+/* GC UI v1.0.1 foundation token consumption; layout stays Monitor-owned.
+   Light appearance is a first-party treatment of the existing surfaces. */
+:root[data-mode="light"] body {
+  background: radial-gradient(ellipse 75% 42% at 53% -10%, rgba(116,100,225,.09), transparent 77%), var(--gc-canvas);
+}
+:root[data-mode="light"] .sidebar {
+  background: rgba(249,250,253,.96);border-color:var(--gc-outline);
+}
+:root[data-mode="light"] .topbar {border-color:var(--gc-outline);}
+:root[data-mode="light"] .panel,
+:root[data-mode="light"] .stat-card,
+:root[data-mode="light"] .login-card,
+:root[data-mode="light"] dialog {
+  background:linear-gradient(145deg,var(--gc-surface-raised),var(--gc-surface));
+  border-color:var(--gc-outline);
+  color:var(--gc-text);
+  box-shadow:var(--gc-shadow-card);
+}
+:root[data-mode="light"] .nav-item {color:#4b536b;}
+:root[data-mode="light"] .nav-item:hover {background:var(--gc-accent-soft);color:var(--gc-text);}
+:root[data-mode="light"] .nav-item.selected {
+  background:var(--gc-accent-soft);color:var(--gc-on-brand-container);
+  box-shadow:inset 2px 0 0 var(--gc-brand);
+}
+:root[data-mode="light"] .section-caption {color:#626b84;}
+:root[data-mode="light"] .brand strong {color:var(--gc-brand);}
+:root[data-mode="light"] .nav-icon {color:#555d85;}
+:root[data-mode="light"] .eyebrow {color:var(--gc-brand);}
+:root[data-mode="light"] .hero p,
+:root[data-mode="light"] .login-card p,
+:root[data-mode="light"] .modal-form p {color:var(--gc-text-soft);}
+:root[data-mode="light"] .top-health,
+:root[data-mode="light"] .breadcrumb,
+:root[data-mode="light"] .breadcrumb strong,
+:root[data-mode="light"] .stat-label,
+:root[data-mode="light"] .stat-foot,
+:root[data-mode="light"] .service-target,
+:root[data-mode="light"] .latency,
+:root[data-mode="light"] .activity-detail,
+:root[data-mode="light"] .activity-time,
+:root[data-mode="light"] .record-copy small,
+:root[data-mode="light"] .outline-chip,
+:root[data-mode="light"] .bottom-caption,
+:root[data-mode="light"] .empty-state p,
+:root[data-mode="light"] .instance-card p,
+:root[data-mode="light"] .logout,
+:root[data-mode="light"] .record-empty {color:#606b84;}
+:root[data-mode="light"] .service-name,
+:root[data-mode="light"] .activity-name,
+:root[data-mode="light"] .record-copy strong,
+:root[data-mode="light"] .empty-state strong {color:var(--gc-text);}
+:root[data-mode="light"] .modal-form label,
+:root[data-mode="light"] .login-card label {color:#39445b;}
+:root[data-mode="light"] .icon-button,
+:root[data-mode="light"] .row-actions button,
+:root[data-mode="light"] .small-button,
+:root[data-mode="light"] .ghost,
+:root[data-mode="light"] .close-button {
+  background:var(--gc-surface-tonal);color:var(--gc-text);
+  border-color:var(--gc-outline);
+}
+:root[data-mode="light"] input,
+:root[data-mode="light"] select {
+  background:var(--gc-surface-raised);color:var(--gc-text);
+  border-color:#aeb7ca;
+}
+:root[data-mode="light"] input:focus,
+:root[data-mode="light"] select:focus {border-color:var(--gc-brand);}
+:root[data-mode="light"] .instance-card {
+  background:var(--gc-accent-soft);border-color:var(--gc-accent-border);
+}
+:root[data-mode="light"] .outline-chip,
+:root[data-mode="light"] .check-rate {background:var(--gc-accent-soft);border-color:var(--gc-accent-border);color:#42378d;}
+:root[data-mode="light"] .empty-state {color:#5b647c;}
+:root[data-mode="light"] .activity-item {border-left-color:var(--gc-divider);}
+:root[data-mode="light"] .stat-icon.neutral {background:#e1e5ef;color:#59647d;}
+:root[data-mode="light"] .stat-icon.positive {background:#e2f4eb;color:#25794c;}
+:root[data-mode="light"] .stat-icon.negative {background:#ffeaee;color:#b64361;}
+:root[data-mode="light"] .stat-icon.purple {background:#eae5ff;color:#6154ca;}
+:root[data-mode="light"] .state-pill:not(.up):not(.down):not(.maintenance) {
+  background:#e8edf7;color:#475675;
+}
+:root[data-mode="light"] .notice {background:#f1edff;border-color:#d0c9ff;color:#38346c;}
+:root[data-mode="light"] .record-checkbox {color:#4f5b74;}
+.public-actions {display:flex;align-items:center;gap:14px;}
+:root .icon-button {transition:background var(--gc-duration-fast) var(--gc-ease-standard),transform var(--gc-duration-fast) var(--gc-ease-standard);}
+:root .icon-button:hover {transform:translateY(-1px);}
+:root button:focus-visible,:root input:focus-visible,:root select:focus-visible,:root a:focus-visible {
+  outline:var(--gc-outline-width) solid var(--gc-brand);outline-offset:3px;
+}

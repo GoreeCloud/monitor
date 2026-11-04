@@ -18,6 +18,7 @@ GoreeCloud Monitor is a privacy-first, self-hosted uptime, service-health and in
 - Creation, editing, pausing, resuming and removal of monitors; HTTP response expectations, recent activity and summary cards.
 - One-time push token rotation with immediate revocation of the previous heartbeat URL.
 - Public status page with opt-in visibility (monitors and maintenance notices default to private).
+- GoreeCloud UI Foundations 1.0.1 semantic tokens integrated locally, with persisted light/dark appearance controls.
 - Manual incident creation/resolution and one-time maintenance records with dashboard controls.
 - Public incident RSS feed, opt-in SVG status badges, and protected Prometheus-format metrics.
 - Basic JSON monitoring endpoints and isolated container deployment example.
@@ -144,3 +145,5 @@ Monitor types are immutable after creation. Changing a health-check target or HT
 ### TLS certificate checks
 
 Create a **TLS certificate** monitor with target `example.com:443` and a warning threshold of 0–365 days (default 14). The probe pins a validated target address, negotiates TLS with the configured hostname using the system trust store, and reports a failure when validation fails or the certificate enters its warning window. Configure a notification destination separately to receive alerts; the feature does not implement registrar/domain-expiration or certificate-chain inventories.
+
+- [GoreeCloud UI conformance and provenance](docs/UI.md)

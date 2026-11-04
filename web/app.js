@@ -295,6 +295,34 @@ function openMonitorDialog(m = null) {
   $("#create-dialog").showModal();
 }
 
+function applyTheme(mode, persist = false) {
+  const next = mode === "light" ? "light" : "dark";
+  document.documentElement.dataset.mode = next;
+  document.documentElement.dataset.accent = "iris";
+  const label = next === "dark" ? "Switch to light appearance" : "Switch to dark appearance";
+  for (const selector of ["#theme-toggle", "#public-theme-toggle"]) {
+    const button = $(selector);
+    if (!button) continue;
+    button.textContent = next === "dark" ? "☀" : "☾";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+  }
+  if (persist) {
+    try { localStorage.setItem("gc-monitor-theme", next); } catch (_) { /* Optional UI preference. */ }
+  }
+}
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem("gc-monitor-theme"); } catch (_) {}
+  const system = window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  applyTheme(saved === "light" || saved === "dark" ? saved : system);
+  for (const selector of ["#theme-toggle", "#public-theme-toggle"]) {
+    const button = $(selector);
+    if (button) button.onclick = () => applyTheme(
+      document.documentElement.dataset.mode === "dark" ? "light" : "dark", true);
+  }
+}
+
 function setupEvents() {
   $("#login-form").addEventListener("submit",async e=>{
     e.preventDefault();$("#login-error").textContent="";
@@ -354,6 +382,7 @@ function setupEvents() {
   });
 }
 async function boot() {
+  initTheme();
   setupEvents();
   if (location.pathname === "/status") return showPublic();
   try { const data=await request("/api/me");state.csrf=data.csrf;reveal("#workspace");await load(); }

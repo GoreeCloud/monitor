@@ -28,7 +28,7 @@ GoreeCloud Monitor is a self-hosted, privacy-first service intelligence platform
 | 11 | Public/private status | **Partial:** opt-in status page, incidents, maintenance, RSS | Multiple branded pages, groups, RSS, incident display, custom domains |
 | 12 | Maintenance | **Partial:** one-time global maintenance records, create/delete UI and private-by-default public announcements | Per-monitor scopes, recurring schedules, alert suppression |
 | 13 | Certificates/domains | **Partial:** verified TLS hostname/chain check, configurable certificate-expiry warning monitor | Certificate details/badges, domain expiry and renewals |
-| 14 | Dashboard and UI | **Partial:** GC UI-inspired responsive console | Design-token package integration, charts, full management forms, visual QA |
+| 14 | Dashboard and UI | **Partial:** pinned GC UI Foundations tokens, responsive console and light/dark appearance controls | Component migration, charts, complete management forms and visual QA |
 | 15 | Status badges | **Partial:** opt-in SVG status badge | Uptime/ping/certificate badges |
 | 16 | APIs/webhooks | **Partial:** authenticated JSON and push | Stable versioned API, webhooks, key management |
 | 17 | Prometheus/external observability | **Partial:** protected /metrics endpoint | Grafana examples, long-term telemetry |
@@ -40,7 +40,7 @@ GoreeCloud Monitor is a self-hosted, privacy-first service intelligence platform
 | 23 | Organization/admin | **Partial:** list, create, edit, pause, resume, delete and push credential rotation | Groups, nested hierarchy, tags, bulk editing |
 | 24 | Reliability/resilience | **Partial:** bounded worker pool, retry threshold | HA design, queue-backed alert delivery, backups, telemetry |
 | 25 | GoreeCloud ecosystem | **Planned** | Explicit verified service endpoints and consent-based integration |
-| 26 | UX/accessibility | **Partial:** responsive layout, semantic controls, reduced motion | Full GC UI component use, WCAG audit and manual screenshot review |
+| 26 | UX/accessibility | **Partial:** responsive layout, canonical semantic token foundations, theme preference, semantic controls and reduced motion | Full GC UI component use and manual browser visual review |
 | 27 | Use cases | **Partial:** HTTP, TCP, DNS and scheduled jobs | Full protocol and infrastructure portfolio |
 | 28 | Product architecture | **Partial:** server, scheduler, DB, UI, status | Modular probe drivers, notifications, plugins, controlled APIs |
 | 29 | Product objectives | **Active product direction** | Measure uptime, response times, alert quality and operational cost |
@@ -81,3 +81,7 @@ Administrators can modify validated monitor names, endpoints, intervals, timeout
 ## TLS certificate monitor increment (2026-11-04)
 
 Added a dedicated `tls` monitor accepting `host:port`. It verifies the TLS peer certificate through the platform trust store using SNI, enforces the configured pre-expiration threshold, records a sanitized failure state, and uses the existing outage/recovery notification integration where configured. The monitor schema includes `warning_days` with a private, backwards-compatible migration. Unit/integration tests exercise address pinning, hostname propagation, impending expiry, invalid configuration and legacy database migration. Expiration badges, domain registrar checks and all-platform TLS acceptance are still pending.
+
+## GoreeCloud UI integration increment (2026-11-04)
+
+The Monitor frontend consumes a local, pinned copy of the Apache-2.0 GoreeCloud UI Foundations 1.0.1 semantic token stylesheet from the canonical GoreeCloud/gc-ui tagged release. The global Canvas/Surface/Lens, typography, motion and accent roles now use canonical token values instead of a separate token authority. Both the administrative console and public status page provide saved light/dark appearance selection. HTML and CSS are served locally, avoiding an external runtime CDN requirement. This is token-level integration, not verified adoption of all GC UI components or full visual acceptance.
