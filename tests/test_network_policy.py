@@ -29,6 +29,19 @@ class AddressPolicyRegressionTests(unittest.TestCase):
                 self.assertFalse(server.valid_ip(address, False))
                 self.assertTrue(server.valid_ip(address, True))
 
+    def test_mapped_ipv6_obeys_embedded_ipv4_policy(self):
+        examples = (
+            ("::ffff:8.8.8.8", False, True),
+            ("::ffff:10.23.1.8", False, False),
+            ("::ffff:10.23.1.8", True, True),
+            ("::ffff:127.0.0.1", True, False),
+            ("::ffff:169.254.169.254", True, False),
+            ("::ffff:224.0.0.1", True, False),
+        )
+        for address, allow_private, permitted in examples:
+            with self.subTest(address=address, allow_private=allow_private):
+                self.assertEqual(server.valid_ip(address, allow_private), permitted)
+
     def test_mixed_dns_answers_are_rejected_before_connect(self):
         answers = [
             (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 443)),
