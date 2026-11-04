@@ -176,7 +176,7 @@ def validate_monitor(spec: dict, allow_private: bool = ALLOW_PRIVATE) -> dict:
         if parsed.username or parsed.password or parsed.fragment:
             raise ValueError("Credentials and fragments are not permitted in monitor URLs")
         try:
-            port = parsed.port or (443 if parsed.scheme == "https" else 80)
+            port = parsed.port if parsed.port is not None else (443 if parsed.scheme == "https" else 80)
         except ValueError as exc:
             raise ValueError("Invalid URL port") from exc
         if port not in range(1, 65536):
@@ -206,7 +206,9 @@ def validate_monitor(spec: dict, allow_private: bool = ALLOW_PRIVATE) -> dict:
 def pinned_http_probe(target: str, timeout: int, expected_code: int, keyword: str) -> None:
     """Connect to validated IP only; TLS certificate verifies original hostname."""
     parts = urlsplit(target)
-    port = parts.port or (443 if parts.scheme == "https" else 80)
+    port = parts.port if parts.port is not None else (443 if parts.scheme == "https" else 80)
+    if port not in range(1, 65536):
+        raise ValueError("Invalid URL port")
     infos = addresses(parts.hostname, port)
     family, _kind, _proto, _canonical, sockaddr = infos[0]
     connection = http.client.HTTPConnection(parts.hostname, port, timeout=timeout)
