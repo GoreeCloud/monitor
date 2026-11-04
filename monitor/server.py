@@ -126,6 +126,10 @@ def initialize():
 
 def valid_ip(value: str, allow_private: bool = ALLOW_PRIVATE) -> bool:
     ip = ipaddress.ip_address(value.split("%", 1)[0])
+    # Treat IPv4-mapped IPv6 exactly like its embedded IPv4 destination.
+    # ipaddress classification differs between Python 3.12 and 3.13.
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
     if ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_unspecified or ip.is_reserved:
         return False
     # Metadata endpoints must remain inaccessible even with private probes.
