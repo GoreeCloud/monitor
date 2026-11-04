@@ -36,7 +36,7 @@ Ensure destination directory exists, is access-controlled and is on storage with
     GC_DATA_DIR=/a/private/path/monitor-data \
       python3 -m monitor.backup /a/private/backups/monitor-snapshot.sqlite3
 
-The helper uses SQLite's consistent backup API, verifies snapshot integrity, creates a mode-0600 file and reports a SHA-256 checksum. It does not overwrite an existing destination. A scratch-directory restore regression test and symlink non-overwrite test are included. Record the checksum separately in an authorized private location; do not publish snapshot data, monitor targets or secrets.
+The helper uses SQLite's consistent backup API, verifies snapshot integrity, creates a mode-0600 file and reports a SHA-256 checksum. It does not overwrite an existing destination. A scratch-directory restore regression test and symlink non-overwrite test are included. Additional development CI regressions exercise **uncheckpointed committed WAL writes while another transaction is open**: the snapshot must preserve committed rows, exclude uncommitted rows, pass integrity checks, retain private maintenance visibility and boot from an isolated single-file restore. Corrupt-source failures must leave no published destination or temporary snapshot. Record the checksum separately in an authorized private location; do not publish snapshot data, monitor targets or secrets.
 
 ## Restore procedure — controlled and offline only
 
@@ -95,6 +95,30 @@ capture, it scrubs the generated one-time push URL from the notice. Never run
 this script pointed at a production instance, export real session data into
 artifacts, or treat its CI screenshots as proof of manual screen-reader,
 cross-browser, accessible contrast, TLS reverse-proxy, or Android acceptance.
+
+## Isolated HTTPS reverse-proxy acceptance
+
+CI discovers `tests/test_tls_proxy.py` in both Python 3.12 and 3.13.
+This standard-library regression creates a disposable SQLite database and
+two listeners bound **only to 127.0.0.1**: the application HTTP origin and a
+minimal Python TLS-terminating test gateway. A short-lived `localhost`
+certificate is generated locally using the runner's existing `openssl`
+binary (no external certificate requests). Its private key stays in a
+mode-0700 temporary directory and is never checked into Git.
+
+Tests prove the untrusted test certificate fails system verification,
+explicitly trusting the disposable certificate succeeds, secure/HttpOnly/
+SameSite session cookies traverse the encrypted gateway, CSRF is required,
+private monitor data stays off public API endpoints, logout revokes the
+session, and forwarded identity headers do not grant authentication.
+
+This validates only an **isolated proxy fixture**, not a production proxy.
+Before any public deployment, independently verify the actual TLS
+certificate/chain and hostname, edge HSTS, strict Host and forwarded-header
+handling, ingress firewall isolation of the plaintext origin, cookie
+configuration, CSRF/origin behavior, WebSocket/HTTP behaviors if enabled,
+logs, timeouts and reverse-proxy security policy. A green fixture test
+does not prove those properties on a VPS or authorize deployment.
 
 ## Operational monitoring
 

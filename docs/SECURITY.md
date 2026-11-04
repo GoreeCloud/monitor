@@ -61,6 +61,22 @@ invalidates in-memory sessions; protect the operator password separately.
 8. **No external security audit or live penetration test.**
 9. **No formal backup restoration validation or upgrade regression tests.**
 
+## HTTPS reverse-proxy boundary — development acceptance
+
+An isolated TLS proxy fixture now checks trusted-certificate HTTPS access,
+`Secure; HttpOnly; SameSite=Strict` cookies, CSRF denial, logout, private
+status isolation, and denial of authentication based on forwarded identity
+headers. Its HSTS header is emitted by the test gateway to model an edge
+control; **the application does not implement or verify a real proxy**.
+The test listeners bind to loopback, and all credentials and certificates
+are disposable fixtures.
+
+This is *not* evidence of a production TLS installation. A publicly
+reachable plaintext origin, untrusted `Host`/`Forwarded` headers, incorrect
+TLS termination, missing edge HTTPS redirects/HSTS, DNS rebinding, and
+network-egress gaps remain deployment risks requiring independent
+configuration checks. No live domain or VPS was tested.
+
 ## Operational security requirements
 
 Keep this service on a private management network until the identified gaps are fixed and validated. Never place actual secrets in the public repo or configuration exports. Use unique long passwords and TLS. Prefer allowlisted private network targets in future releases. Review network egress policies, reverse proxy logs, data retention, backup security and access controls.
