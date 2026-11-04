@@ -130,3 +130,13 @@ dialog{background:linear-gradient(155deg,#1e2b45,#111b2e);color:var(--gc-text);b
 :root button:focus-visible,:root input:focus-visible,:root select:focus-visible,:root a:focus-visible {
   outline:var(--gc-outline-width) solid var(--gc-brand);outline-offset:3px;
 }
+
+/* GC UI-aligned service discovery: native keyboard-accessible inputs and stable counts. */
+.monitor-tools{display:flex;flex-wrap:wrap;align-items:end;gap:12px;padding:18px 24px 5px}
+.monitor-field{display:flex;flex:1 1 220px;flex-direction:column;gap:8px;min-width:0;color:var(--gc-text-soft);font-size:11px;font-weight:650}
+.monitor-status-field{flex:0 1 190px}
+.monitor-tools input,.monitor-tools select{height:41px;background:var(--gc-surface-tonal);color:var(--gc-text);border:1px solid var(--gc-outline);border-radius:11px;padding:0 12px;width:100%;min-width:0}
+.monitor-tools input::placeholder{color:var(--gc-text-soft)}
+.monitor-tools input:focus-visible,.monitor-tools select:focus-visible{outline:2px solid var(--gc-brand);outline-offset:2px}
+.monitor-result-count{color:var(--gc-text-soft);font-size:11px;padding:2px 24px 0;margin:7px 0}
+@media(max-width:690px){.monitor-tools{padding:16px 14px 2px;gap:10px}.monitor-field{flex-basis:100%}.monitor-status-field{flex-basis:100%}.monitor-result-count{padding:2px 14px 0}}

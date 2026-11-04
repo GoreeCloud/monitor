@@ -28,7 +28,7 @@ GoreeCloud Monitor is a self-hosted, privacy-first service intelligence platform
 | 11 | Public/private status | **Partial:** opt-in status page, incidents, maintenance, RSS | Multiple branded pages, groups, RSS, incident display, custom domains |
 | 12 | Maintenance | **Partial:** one-time global or monitor-scoped maintenance, create/delete UI, selective suppression and private-by-default public announcements | Per-monitor scopes, recurring schedules, alert suppression |
 | 13 | Certificates/domains | **Partial:** verified TLS hostname/chain check, configurable certificate-expiry warning monitor | Certificate details/badges, domain expiry and renewals |
-| 14 | Dashboard and UI | **Partial:** pinned GC UI Foundations tokens, responsive console and light/dark appearance controls | Component migration, charts, complete management forms and visual QA |
+| 14 | Dashboard and UI | **Partial:** pinned GC UI Foundations tokens, responsive console, service search/status filters and light/dark appearance controls | Component migration, charts, complete management forms and visual QA |
 | 15 | Status badges | **Partial:** opt-in SVG status badge | Uptime/ping/certificate badges |
 | 16 | APIs/webhooks | **Partial:** authenticated JSON and push | Stable versioned API, webhooks, key management |
 | 17 | Prometheus/external observability | **Partial:** protected /metrics endpoint | Grafana examples, long-term telemetry |
