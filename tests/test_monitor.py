@@ -201,6 +201,23 @@ class HttpIntegrationTests(unittest.TestCase):
             self.call("POST","/push/"+token,{"status":"up"})
             self.assertEqual(submit.call_count,2)
 
+    def test_paused_monitor_stays_paused_during_public_maintenance(self):
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        cookie, csrf = self.login()
+        _, response, _ = self.call("POST", "/api/monitors",
+                                   {"name": "Paused service", "kind": "push", "public": True}, cookie, csrf)
+        monitor_id = json.loads(response)["id"]
+        self.assertEqual(self.call("PATCH", "/api/monitors/%d" % monitor_id,
+                                   {"active": False}, cookie, csrf)[0], 200)
+        window = {"title": "Published maintenance",
+                  "starts_at": (now - timedelta(minutes=10)).isoformat(),
+                  "ends_at": (now + timedelta(minutes=20)).isoformat(),
+                  "public": True}
+        self.assertEqual(self.call("POST", "/api/maintenance", window, cookie, csrf)[0], 201)
+        self.assertEqual(json.loads(self.call("GET", "/api/public")[1])["monitors"][0]["display_state"], "paused")
+        self.assertEqual(json.loads(self.call("GET", "/api/monitors", cookie=cookie)[1])["monitors"][0]["display_state"], "paused")
+
     def test_private_maintenance_does_not_change_public_state(self):
         from datetime import datetime, timedelta, timezone
         now = datetime.now(timezone.utc)

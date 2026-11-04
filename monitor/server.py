@@ -344,10 +344,12 @@ def monitor_list(public: bool = False) -> list[dict]:
         for row in rows:
             row["public"] = bool(row["public"])
             row["active"] = bool(row["active"])
-            if maintenance_visible:
+            if not row["active"]:
+                row["display_state"] = "paused"
+            elif maintenance_visible:
                 row["display_state"] = "maintenance"
             else:
-                row["display_state"] = row["state"] if row["active"] else "paused"
+                row["display_state"] = row["state"]
         return rows
 
 
