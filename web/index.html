@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0c1224">
+  <meta name="description" content="GoreeCloud Monitor — private service intelligence.">
+  <title>GoreeCloud Monitor · Service intelligence</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <div id="login" class="login-screen" hidden>
+    <section class="login-card" aria-labelledby="login-title">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><span></span></span><span>GoreeCloud <strong>Monitor</strong></span></div>
+      <div class="eyebrow">YOUR INFRASTRUCTURE, IN FOCUS</div>
+      <h1 id="login-title">Good to see you.</h1>
+      <p>Sign in to your private monitoring workspace.</p>
+      <form id="login-form">
+        <label for="password">Administrator password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required minlength="12" placeholder="Enter your password">
+        <button class="primary full" type="submit">Enter workspace <span aria-hidden="true">↗</span></button>
+      </form>
+      <div class="form-message" id="login-error" role="alert"></div>
+      <div class="login-foot"><span class="live-dot"></span> Self-hosted, by design</div>
+    </section>
+  </div>
+  <div id="workspace" class="workspace" hidden>
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div class="brand sidebar-brand"><span class="brand-mark" aria-hidden="true"><span></span></span><span>GoreeCloud<br><strong>Monitor</strong></span></div>
+      <span class="section-caption">WORKSPACE</span>
+      <nav id="nav">
+        <button class="nav-item selected" data-view="overview"><span class="nav-icon">◈</span> Overview</button>
+        <button class="nav-item" data-view="monitors"><span class="nav-icon">▦</span> All monitors</button>
+        <button class="nav-item" data-view="activity"><span class="nav-icon">◷</span> Activity</button>
+        <button class="nav-item" data-view="incidents"><span class="nav-icon">◇</span> Incidents</button>
+        <button class="nav-item" data-view="maintenance"><span class="nav-icon">◫</span> Maintenance</button>
+      </nav>
+      <span class="section-caption channel-caption">COMMUNICATION</span>
+      <a class="nav-item nav-link" href="/status" target="_blank" rel="noopener"><span class="nav-icon">↗</span> Public status page</a>
+      <div class="sidebar-bottom">
+        <div class="instance-card">
+          <div class="instance-icon">✦</div>
+          <strong>Private by default</strong>
+          <p>Only explicitly published monitors appear on your public status page.</p>
+        </div>
+        <button id="logout" class="logout">Sign out <span aria-hidden="true">→</span></button>
+      </div>
+    </aside>
+    <main class="main" id="main">
+      <header class="topbar"><div class="breadcrumb">Workspace <span>/</span> <strong id="view-label">Overview</strong></div>
+        <div class="top-actions"><div class="top-health"><span class="live-dot"></span> Monitor engine</div><button id="refresh" class="icon-button" aria-label="Refresh dashboard" title="Refresh">↻</button><div class="avatar" aria-label="Administrator">GC</div></div>
+      </header>
+      <div class="content">
+        <section class="hero">
+          <div><div class="eyebrow"><span class="sparkle">✦</span> SERVICE INTELLIGENCE</div><h1 id="page-title">The big picture<span class="title-stop">.</span></h1><p id="page-description">Your infrastructure, at a glance. Every signal tells a story.</p></div>
+          <button id="new-monitor" class="primary">＋ <span>Add monitor</span></button>
+        </section>
+        <div id="notice" class="notice" role="status" hidden></div>
+        <section class="stat-grid" id="stats">
+          <article class="stat-card"><span class="stat-label">TOTAL MONITORS</span><div class="stat-line"><strong id="stat-total">—</strong><span class="stat-icon neutral">▦</span></div><span class="stat-foot">Configured services</span></article>
+          <article class="stat-card"><span class="stat-label">OPERATIONAL</span><div class="stat-line"><strong id="stat-up">—</strong><span class="stat-icon positive">✓</span></div><span class="stat-foot"><span class="up-dot"></span> Checks passing</span></article>
+          <article class="stat-card"><span class="stat-label">NEEDS ATTENTION</span><div class="stat-line"><strong id="stat-down">—</strong><span class="stat-icon negative">!</span></div><span class="stat-foot">Confirmed outages</span></article>
+          <article class="stat-card"><span class="stat-label">CHECKS RECORDED</span><div class="stat-line"><strong id="stat-checks">—</strong><span class="stat-icon purple">↗</span></div><span class="stat-foot">Stored heartbeat results</span></article>
+        </section>
+        <div class="main-grid">
+          <section class="panel monitors-panel">
+            <div class="panel-heading"><div><div class="eyebrow small">LIVE PULSE</div><h2>Service health</h2></div><span class="outline-chip">Auto-refresh · 15s</span></div>
+            <div id="monitor-list" class="monitor-list"></div>
+          </section>
+          <section class="panel activity-panel">
+            <div class="panel-heading"><div><div class="eyebrow small">THE LAST SIGNALS</div><h2>Recent activity</h2></div><span class="soft-symbol">↗</span></div>
+            <div id="activity-list" class="activity-list"></div>
+          </section>
+        </div>
+        <div class="bottom-caption">GoreeCloud Monitor <span>·</span> Calm information. Expressive personality. Purposeful depth.</div>
+      </div>
+    </main>
+  </div>
+  <div id="public-page" class="public-page" hidden>
+    <header class="public-header"><div class="brand"><span class="brand-mark" aria-hidden="true"><span></span></span>GoreeCloud <strong>Monitor</strong></div><span class="outline-chip">Public status</span></header>
+    <main class="public-content"><div class="eyebrow">TRANSPARENT BY DESIGN</div><h1>Service status<span class="title-stop">.</span></h1><p>Live availability for services intentionally shared by their administrator.</p><section class="panel public-panel"><div id="public-list"></div></section><div class="bottom-caption">Powered by GoreeCloud Monitor</div></main>
+  </div>
+  <dialog id="create-dialog" aria-labelledby="create-heading">
+    <form method="dialog" id="monitor-form" class="modal-form">
+      <div class="modal-head"><div><div class="eyebrow small">NEW MONITOR</div><h2 id="create-heading">Add a service</h2></div><button class="close-button" id="close-modal" value="cancel" type="button" aria-label="Close">×</button></div>
+      <p>Monitor a web endpoint, TCP port, DNS name, or external heartbeat.</p>
+      <label for="monitor-name">Service name</label><input name="name" id="monitor-name" maxlength="100" required placeholder="e.g. API Gateway">
+      <label for="monitor-type">Check type</label><select name="kind" id="monitor-type"><option value="http">HTTP / HTTPS</option><option value="tcp">TCP port</option><option value="dns">DNS resolution</option><option value="push">Push heartbeat</option></select>
+      <label for="monitor-target" id="target-label">Endpoint URL</label><input name="target" id="monitor-target" placeholder="https://example.com/health">
+      <div class="field-pair"><div><label for="monitor-interval">Interval (seconds)</label><input type="number" min="20" max="86400" name="interval_seconds" id="monitor-interval" value="60"></div><div><label for="monitor-timeout">Timeout (seconds)</label><input type="number" min="1" max="30" name="timeout_seconds" id="monitor-timeout" value="8"></div></div>
+      <label class="checkbox-row"><input type="checkbox" name="public" id="monitor-public"><span>Show this service on the public status page</span></label>
+      <div class="form-message" id="monitor-error" role="alert"></div>
+      <div class="modal-actions"><button type="button" class="ghost" id="cancel-monitor">Cancel</button><button type="submit" class="primary">Create monitor →</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

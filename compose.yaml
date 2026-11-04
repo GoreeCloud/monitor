@@ -1,0 +1,27 @@
+services:
+  monitor:
+    build: .
+    restart: unless-stopped
+    # Local-only by default. Use a TLS reverse proxy to publish to the Internet.
+    ports:
+      - "127.0.0.1:3001:3001"
+    environment:
+      GC_ADMIN_PASSWORD_FILE: /run/secrets/monitor_admin_password
+      GC_COOKIE_SECURE: "1"
+      GC_ALLOW_PRIVATE_TARGETS: "0"
+    secrets:
+      - monitor_admin_password
+    volumes:
+      - monitor_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+secrets:
+  monitor_admin_password:
+    file: ./secrets/admin_password.txt
+volumes:
+  monitor_data:
