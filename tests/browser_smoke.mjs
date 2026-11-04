@@ -229,11 +229,16 @@ async function main() {
     // CDP sends a genuine keyboard Enter event to the focused nav button.
     await browser.evaluate(
       'document.querySelector("button[data-view=monitors]").focus()');
+    assert.equal(await browser.evaluate('document.activeElement?.dataset.view'),
+      "monitors", "navigation button takes keyboard focus");
     await browser.command("Input.dispatchKeyEvent", {
-      type: "rawKeyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13,
+      type: "keyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13,
+      nativeVirtualKeyCode: 13,
+      text: String.fromCharCode(13), unmodifiedText: String.fromCharCode(13),
     });
     await browser.command("Input.dispatchKeyEvent", {
       type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13,
+      nativeVirtualKeyCode: 13,
     });
     await waitFor(() => browser.evaluate(
       'document.querySelector("button[data-view=monitors]").getAttribute("aria-current") === "page"'),
