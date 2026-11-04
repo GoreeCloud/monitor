@@ -229,6 +229,14 @@ const labels = {
   incidents: ["Incidents", "Incident awareness", "Track investigated service disruptions and share updates."],
   maintenance: ["Maintenance", "Planned work", "Keep maintenance windows distinct from unexpected outages."]
 };
+function syncActiveNavigation(items, view) {
+  for (const item of items) {
+    const isCurrent = item.dataset.view === view;
+    item.classList.toggle("selected", isCurrent);
+    if (isCurrent) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
+  }
+}
 function setView(view) {
   if (!labels[view]) return;
   state.view = view;
@@ -236,7 +244,7 @@ function setView(view) {
   $("#view-label").textContent = label;
   $("#page-title").replaceChildren(document.createTextNode(title),el("span","title-stop","."));
   $("#page-description").textContent = description;
-  document.querySelectorAll(".nav-item[data-view]").forEach(x=>x.classList.toggle("selected",x.dataset.view===view));
+  syncActiveNavigation(document.querySelectorAll(".nav-item[data-view]"), view);
   $("#stats").hidden = !["overview","monitors"].includes(view);
   $(".monitors-panel").hidden = view === "activity" || view === "incidents" || view === "maintenance";
   $(".activity-panel").hidden = view === "monitors" || view === "incidents" || view === "maintenance";

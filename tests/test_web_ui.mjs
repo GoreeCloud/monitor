@@ -9,6 +9,13 @@ const selectMonitors = runInNewContext(
   source.replace(/\nboot\(\);\s*$/, "\n") + "\nselectMonitors;",
   {document: {}, console}
 );
+const syncActiveNavigation = runInNewContext(
+  source.replace(/\nboot\(\);\s*$/, "\n") + "\nsyncActiveNavigation;",
+  {document: {}, console}
+);
+const markup = readFileSync(new URL("../web/index.html", import.meta.url), "utf8");
+assert.doesNotMatch(markup, /class="nav-icon"(?! aria-hidden="true")/);
+
 const examples = [
   {name:"API Gateway", kind:"http", target:"https://status.example/health", active:true, state:"up"},
   {name:"Backup Tasks", kind:"push", target:"", active:true, state:"down"},
@@ -42,4 +49,25 @@ test("sort is local and leaves source order unchanged",()=>{
 });
 test("empty inventory returns no results",()=>{
   assert.deepEqual(Array.from(selectMonitors([], "something", "up")), []);
+});
+
+test("active navigation is conveyed with aria-current, not only visual styling",()=>{
+  const nodes = ["overview", "monitors", "activity"].map(view=>{
+    const attributes = new Map();
+    let selected = false;
+    return {
+      dataset: {view},
+      classList: {toggle(name,active){if(name==="selected") selected=active;}},
+      setAttribute(name,value){attributes.set(name,value);},
+      removeAttribute(name){attributes.delete(name);},
+      get current(){return attributes.get("aria-current");},
+      get selected(){return selected;}
+    };
+  });
+  syncActiveNavigation(nodes, "activity");
+  assert.deepEqual(nodes.map(x=>x.current), [undefined, undefined, "page"]);
+  assert.deepEqual(nodes.map(x=>x.selected), [false, false, true]);
+  syncActiveNavigation(nodes, "overview");
+  assert.deepEqual(nodes.map(x=>x.current), ["page", undefined, undefined]);
+  assert.deepEqual(nodes.map(x=>x.selected), [true, false, false]);
 });
