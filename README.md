@@ -13,6 +13,7 @@ GoreeCloud Monitor is a privacy-first, self-hosted uptime, service-health and in
 - Background scheduler, per-monitor intervals, timeouts and consecutive-failure thresholds.
 - SQLite WAL persistence for monitors and bounded heartbeat history; consistent non-overwriting backup utility.
 - Private authenticated administrator console with session cookie and anti-CSRF token.
+- Sample-based 24-hour check success rates, labeled distinctly from uptime.
 - Creation, pausing, resuming and removal of monitors; recent activity and summary cards.
 - Public status page with opt-in visibility (monitors and maintenance notices default to private).
 - Manual incident creation/resolution and one-time maintenance records with dashboard controls.
@@ -62,6 +63,7 @@ Compose binds only to 127.0.0.1:3001 and requires GC_COOKIE_SECURE=1; access the
 | PATCH, DELETE | /api/monitors/{id} | Session + CSRF | Pause, resume or delete |
 | GET | /api/summary | Session | Monitor counts |
 | GET | /api/history | Session | Recent heartbeats |
+| GET | /api/stats | Session | 24-hour check success rate and average latency |
 | GET, POST | /api/incidents | Session (POST + CSRF) | Record incidents |
 | PATCH | /api/incidents/{id} | Session + CSRF | Resolve/reopen an incident |
 | GET, POST | /api/maintenance | Session (POST + CSRF) | Record maintenance |

@@ -20,7 +20,7 @@ import time
 from xml.sax.saxutils import escape as xml_escape
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 BASE = Path(__file__).resolve().parent.parent
@@ -348,6 +348,26 @@ def monitor_list(public: bool = False) -> list[dict]:
         return rows
 
 
+def recent_check_stats(public: bool = False) -> dict[str, dict]:
+    """Sample-based success rate; NOT a time-weighted uptime measurement."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(timespec="seconds")
+    restriction = "WHERE m.public=1" if public else ""
+    statement = ("""SELECT m.id AS monitor_id, COUNT(h.id) AS checks,
+                    COALESCE(SUM(CASE WHEN h.state='up' THEN 1 ELSE 0 END),0) AS successful,
+                    AVG(h.latency_ms) AS average_latency_ms
+                    FROM monitors m LEFT JOIN heartbeats h
+                    ON h.monitor_id=m.id AND h.time>=? """ +
+                 restriction + " GROUP BY m.id")
+    with db() as con:
+        rows = [dict(r) for r in con.execute(statement, (cutoff,))]
+    return {str(r["monitor_id"]): {
+        "checks": r["checks"], "successful": r["successful"],
+        "pass_rate": round(100 * r["successful"] / r["checks"], 1) if r["checks"] else None,
+        "average_latency_ms": round(r["average_latency_ms"], 2)
+                              if r["average_latency_ms"] is not None else None
+    } for r in rows}
+
+
 class Scheduler(threading.Thread):
     def __init__(self):
         super().__init__(name="goreecloud-scheduler", daemon=True)
@@ -502,7 +522,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 maintenance = [dict(r) for r in con.execute(
                     "SELECT title,description,starts_at,ends_at FROM maintenance WHERE public=1 AND ends_at>=? ORDER BY starts_at LIMIT 15", (utcnow(),))]
             return self.send(200, {"monitors": monitor_list(public=True), "incidents": incidents,
-                                   "maintenance": maintenance})
+                                   "maintenance": maintenance, "stats": recent_check_stats(public=True)})
         if path == "/status.rss":
             with db() as con:
                 rows = [dict(r) for r in con.execute(
@@ -565,6 +585,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 checks = con.execute("SELECT COUNT(*) FROM heartbeats").fetchone()[0]
             return self.send(200, {"total": total, "up": up, "down": down, "checks": checks,
                                    "maintenance": active_maintenance()})
+        if path == "/api/stats":
+            return self.send(200, {"stats": recent_check_stats()})
         if path == "/api/history":
             with db() as con:
                 rows = [dict(x) for x in con.execute("""SELECT h.time,h.state,h.latency_ms,h.detail,m.name

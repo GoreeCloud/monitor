@@ -1,6 +1,6 @@
 "use strict";
 const $ = (sel) => document.querySelector(sel);
-const state = { csrf: "", monitors: [], summary: {}, history: [], incidents: [], maintenance: [], view: "overview" };
+const state = { csrf: "", monitors: [], summary: {}, stats: {}, history: [], incidents: [], maintenance: [], view: "overview" };
 function el(tag, cls, text) {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
@@ -44,7 +44,11 @@ function drawMonitors() {
     const icon = el("div", "service-icon", {http:"↗",tcp:"⇄",dns:"◎",push:"↓"}[m.kind] || "◈");
     const text = el("div", "service-copy");
     text.append(el("span", "service-name", m.name), el("span", "service-target", m.kind === "push" ? "Push heartbeat" : m.target));
-    row.append(icon,text,statusChip(m.display_state || m.state),el("span","latency", m.latency_ms == null ? "—" : m.latency_ms.toFixed(0) + " ms"));
+    const recent = state.stats[String(m.id)];
+    const rate = recent?.pass_rate;
+    const chip = el("span", "check-rate", rate == null ? "24H —" : "24H " + rate.toFixed(1) + "%");
+    chip.title = "Successful recorded checks in the past 24 hours, not time-weighted uptime";
+    row.append(icon,text,statusChip(m.display_state || m.state),chip,el("span","latency", m.latency_ms == null ? "—" : m.latency_ms.toFixed(0) + " ms"));
     const controls = el("div", "row-actions");
     const toggle = el("button", "", m.active ? "Ⅱ" : "▶");
     toggle.title = m.active ? "Pause monitor" : "Resume monitor";
@@ -196,12 +200,13 @@ function setView(view) {
   } else { drawMonitors();drawActivity(); }
 }
 async function load() {
-  const [monitors,summary,history,incidents,maintenance] = await Promise.all([
-    request("/api/monitors"),request("/api/summary"),request("/api/history"),
-    request("/api/incidents"),request("/api/maintenance")
+  const [monitors,summary,stats,history,incidents,maintenance] = await Promise.all([
+    request("/api/monitors"),request("/api/summary"),request("/api/stats"),
+    request("/api/history"),request("/api/incidents"),request("/api/maintenance")
   ]);
   state.monitors = monitors.monitors;
   state.summary = summary;
+  state.stats = stats.stats;
   state.history = history.history;
   state.incidents = incidents.incidents;
   state.maintenance = maintenance.maintenance;
@@ -223,6 +228,12 @@ async function showPublic() {
     for (const m of monitors) {
       const row=el("div","monitor-item");
       row.append(el("div","service-icon","◈"),el("div","service-copy",m.name),statusChip(m.display_state||m.state));
+      const rate = data.stats?.[String(m.id)]?.pass_rate;
+      if (rate != null) {
+        const chip = el("span","check-rate","24H " + rate.toFixed(1) + "%");
+        chip.title = "Successful recorded checks in the past 24 hours, not time-weighted uptime";
+        row.append(chip);
+      }
       list.append(row);
     }
     for(const item of (data.maintenance||[])) {

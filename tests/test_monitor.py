@@ -113,6 +113,36 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertEqual(self.call("POST","/api/monitors",{"name":"Job","kind":"push"},cookie)[0],403)
         self.assertEqual(self.call("POST","/api/monitors",{"name":"Job","kind":"push"},cookie,csrf)[0],201)
 
+    def test_stats_public_only_and_sample_based(self):
+        cookie, csrf = self.login()
+        _, a, _ = self.call("POST", "/api/monitors", {"name": "Private", "kind": "push"}, cookie, csrf)
+        _, b, _ = self.call("POST", "/api/monitors",
+                             {"name": "Public", "kind": "push", "public": True}, cookie, csrf)
+        private, public_monitor = json.loads(a), json.loads(b)
+        self.assertEqual(self.call("GET", "/api/stats")[0], 401)
+        for status in ("up", "up", "down", "down"):
+            self.assertEqual(self.call("POST", "/push/" + public_monitor["push_token"],
+                                       {"status": status})[0], 200)
+        self.assertEqual(self.call("POST", "/push/" + private["push_token"],
+                                   {"status": "up"})[0], 200)
+        public_stats = json.loads(self.call("GET", "/api/public")[1])["stats"]
+        self.assertNotIn(str(private["id"]), public_stats)
+        sample = public_stats[str(public_monitor["id"])]
+        self.assertEqual(sample["checks"], 4)
+        self.assertEqual(sample["successful"], 2)
+        self.assertEqual(sample["pass_rate"], 50.0)
+        internal = json.loads(self.call("GET", "/api/stats", cookie=cookie)[1])["stats"]
+        self.assertIn(str(private["id"]), internal)
+
+    def test_empty_stats_report_no_rate(self):
+        cookie, csrf = self.login()
+        _, body, _ = self.call("POST", "/api/monitors",
+                               {"name": "No checks", "kind": "push"}, cookie, csrf)
+        key = str(json.loads(body)["id"])
+        stats = json.loads(self.call("GET", "/api/stats", cookie=cookie)[1])["stats"]
+        self.assertEqual(stats[key]["checks"], 0)
+        self.assertIsNone(stats[key]["pass_rate"])
+
     def test_public_privacy_and_badge(self):
         cookie,csrf=self.login()
         _,body,_=self.call("POST","/api/monitors",{"name":"Private","kind":"push"},cookie,csrf)

@@ -64,3 +64,7 @@ Each valid push-token digest receives a 120-submission rolling-minute limit in p
 ## Backup process
 
 The optional monitor.backup module connects to SQLite's online-backup API with the source database opened read-only. It verifies PRAGMA integrity_check on the snapshot, stores an owner-restricted temporary file in the destination directory, atomically links to a new destination name, and reports a SHA-256 digest. Existing files are not overwritten. The helper does not provide restore automation, encryption, offsite storage or schedules. Follow [OPERATIONS.md](OPERATIONS.md) for cautious recovery.
+
+## Recent check pass-rate analytics
+
+The authenticated /api/stats endpoint reports recorded check counts, successful counts, success rate and average response latency over the previous 24 hours. Public status JSON includes aggregates only for monitors explicitly marked public. This is a sample-based metric, **not time-weighted uptime**; records with no recent checks yield a null percentage.
