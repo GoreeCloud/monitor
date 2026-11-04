@@ -25,6 +25,20 @@ Monitoring requests can access infrastructure endpoints and are therefore SSRF-s
 - Nonroot, dropped capabilities, read-only filesystem and persistence volume in sample container configuration.
 - No committed passwords, tokens, credentials, production inventory or live endpoints.
 
+## In-memory session lifecycle
+
+Each successful operator login creates a new random session ID and anti-CSRF
+token. The single-process session table prunes expired records on new logins,
+removes expired records when their cookies are presented, and retains at most
+128 concurrent sessions by evicting those that expire first. This prevents
+unbounded session-table growth from repeated logins without changing the
+existing eight-hour absolute session expiration or cookie protections.
+
+These controls are **not** distributed rate limiting, durable session
+revocation across multiple instances, multi-user authentication, or
+production session-management certification. Restarting the service
+invalidates in-memory sessions; protect the operator password separately.
+
 ## Known security gaps — release blockers for Internet exposure
 
 1. **HTTP network-policy review:** connections pin DNS results to the validated address and retain TLS hostname verification, but this prototype still lacks complete testing of DNS answer changes, proxy behavior, IPv6, redirect handling, and network egress enforcement. Keep it private until validated.
