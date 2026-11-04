@@ -6,7 +6,8 @@ import http.client
 import json
 import http.server
 import unittest
-from unittest.mock import patch
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 
 from monitor import server
@@ -43,6 +44,68 @@ class ValidationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             server.validate_monitor({"name": "x", "kind": "tcp", "target": "badport:NaN"})
 
+
+    def test_tls_monitor_validates_target_and_warning_days(self):
+        with patch.object(server, "addresses") as resolve:
+            resolve.return_value = [(2, 1, 6, "", ("8.8.8.8", 443))]
+            spec = server.validate_monitor({
+                "name": "Public certificate", "kind": "tls",
+                "target": "example.test:443", "warning_days": 30
+            })
+            self.assertEqual(spec["warning_days"], 30)
+            self.assertEqual(spec["kind"], "tls")
+            resolve.assert_called_once_with("example.test", 443, False)
+        for invalid in (
+            {"target": "https://example.test"},
+            {"target": "example.test:99999"},
+            {"target": ""},
+            {"target": "example.test:bad"},
+        ):
+            with self.assertRaises(ValueError):
+                server.validate_monitor({
+                    "name": "Invalid TLS", "kind": "tls",
+                    **invalid
+                })
+        for days in (-1, 366, "unknown"):
+            with self.assertRaises(ValueError):
+                server.validate_monitor({"name": "TLS", "kind": "tls",
+                    "target": "example.test:443", "warning_days": days})
+
+    def test_tls_probe_uses_pinned_address_and_verified_sni(self):
+        cert_expiry = (datetime.now(timezone.utc) + timedelta(days=40)).strftime(
+            "%b %d %H:%M:%S %Y GMT")
+        monitor = {"kind": "tls", "target": "example.test:443",
+                   "timeout_seconds": 5, "warning_days": 14}
+        with patch.object(server, "addresses") as resolve, \
+             patch.object(server.socket, "socket") as make_socket, \
+             patch.object(server.ssl, "create_default_context") as make_context:
+            resolve.return_value = [(2, 1, 6, "", ("198.51.100.10", 443))]
+            make_context.return_value.wrap_socket.return_value.__enter__.return_value.getpeercert.return_value = {
+                "notAfter": cert_expiry
+            }
+            state, latency, detail = server.probe(monitor)
+            self.assertEqual(state, "up")
+            self.assertGreaterEqual(latency, 0)
+            self.assertIn("Certificate valid", detail)
+            make_socket.return_value.connect.assert_called_once_with(("198.51.100.10", 443))
+            make_context.return_value.wrap_socket.assert_called_once_with(
+                make_socket.return_value, server_hostname="example.test")
+            resolve.assert_called_once_with("example.test", 443)
+
+    def test_tls_expiration_warning_is_a_failure(self):
+        cert_expiry = (datetime.now(timezone.utc) + timedelta(days=2)).strftime(
+            "%b %d %H:%M:%S %Y GMT")
+        monitor = {"kind": "tls", "target": "example.test:443",
+                   "timeout_seconds": 5, "warning_days": 14}
+        with patch.object(server, "addresses", return_value=[(2, 1, 6, "",
+               ("198.51.100.10", 443))]), \
+             patch.object(server.socket, "socket"), \
+             patch.object(server.ssl, "create_default_context") as make_context:
+            make_context.return_value.wrap_socket.return_value.__enter__.return_value.getpeercert.return_value = {
+                "notAfter": cert_expiry
+            }
+            state, latency, detail = server.probe(monitor)
+            self.assertEqual((state, latency, detail), ("down", None, "CertificateExpiringSoon"))
 
 class DatabaseTests(unittest.TestCase):
     def test_initialization_and_push_history(self):
@@ -116,6 +179,36 @@ class HttpIntegrationTests(unittest.TestCase):
             status, data, _ = self.call("GET", "/readyz")
             self.assertEqual(status, 503)
             self.assertFalse(json.loads(data)["ready"])
+
+    def test_tls_configuration_and_expiry_policy_updates(self):
+        cookie, csrf = self.login()
+        with patch.object(server, "addresses", return_value=[(2, 1, 6, "",
+                         ("8.8.8.8", 443))]):
+            status, response, _ = self.call("POST", "/api/monitors", {
+                "name": "TLS endpoint", "kind": "tls", "target": "example.test:443",
+                "warning_days": 30}, cookie, csrf)
+            self.assertEqual(status, 201)
+            mid = json.loads(response)["id"]
+            listing = json.loads(self.call("GET", "/api/monitors",
+                                           cookie=cookie)[1])["monitors"][0]
+            self.assertEqual(listing["warning_days"], 30)
+            status, result, _ = self.call("PATCH", "/api/monitors/%d" % mid,
+                 {"warning_days": 90}, cookie, csrf)
+            self.assertEqual(status, 200)
+            self.assertTrue(json.loads(result)["reset"])
+            self.assertEqual(self.call("PATCH", "/api/monitors/%d" % mid,
+                {"warning_days": 400}, cookie, csrf)[0], 400)
+
+    def test_tls_schema_upgrade_preserves_existing_monitors(self):
+        with server.db() as con:
+            con.execute("ALTER TABLE monitors DROP COLUMN warning_days")
+            con.execute("""INSERT INTO monitors
+                (name,kind,target,interval_seconds,timeout_seconds,created_at)
+                VALUES('Existing backup monitor','push','',60,8,?)""", (server.utcnow(),))
+        server.initialize()
+        with server.db() as con:
+            row = con.execute("SELECT name,warning_days FROM monitors").fetchone()
+            self.assertEqual((row["name"], row["warning_days"]), ("Existing backup monitor", 14))
 
     def test_monitor_edit_validated_without_changing_push_token(self):
         cookie, csrf = self.login()

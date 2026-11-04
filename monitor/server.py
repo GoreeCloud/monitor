@@ -86,6 +86,7 @@ def initialize():
           target TEXT NOT NULL, interval_seconds INTEGER NOT NULL,
           timeout_seconds INTEGER NOT NULL, expected_code INTEGER NOT NULL DEFAULT 200,
           keyword TEXT NOT NULL DEFAULT '', public INTEGER NOT NULL DEFAULT 0,
+          warning_days INTEGER NOT NULL DEFAULT 14,
           active INTEGER NOT NULL DEFAULT 1, token_hash TEXT UNIQUE,
           state TEXT NOT NULL DEFAULT 'pending', last_check TEXT,
           latency_ms REAL, failures INTEGER NOT NULL DEFAULT 0,
@@ -112,6 +113,9 @@ def initialize():
         columns = {r["name"] for r in con.execute("PRAGMA table_info(maintenance)")}
         if "public" not in columns:
             con.execute("ALTER TABLE maintenance ADD COLUMN public INTEGER NOT NULL DEFAULT 0")
+        monitor_columns = {r["name"] for r in con.execute("PRAGMA table_info(monitors)")}
+        if "warning_days" not in monitor_columns:
+            con.execute("ALTER TABLE monitors ADD COLUMN warning_days INTEGER NOT NULL DEFAULT 14")
 
 
 def valid_ip(value: str, allow_private: bool = ALLOW_PRIVATE) -> bool:
@@ -142,16 +146,18 @@ def validate_monitor(spec: dict, allow_private: bool = ALLOW_PRIVATE) -> dict:
     target = str(spec.get("target", "")).strip()
     if not name or len(name) > 100 or any(ord(c) < 32 for c in name):
         raise ValueError("Name must contain 1–100 printable characters")
-    if kind not in ("http", "tcp", "dns", "push"):
-        raise ValueError("Supported types: HTTP, TCP, DNS, Push")
+    if kind not in ("http", "tcp", "dns", "push", "tls"):
+        raise ValueError("Supported types: HTTP, TCP, DNS, Push, TLS")
     try:
         interval = int(spec.get("interval_seconds", 60))
         timeout = int(spec.get("timeout_seconds", 8))
         expected_code = int(spec.get("expected_code", 200))
+        warning_days = int(spec.get("warning_days", 14))
     except (ValueError, TypeError):
         raise ValueError("Invalid numeric monitor setting")
-    if not 20 <= interval <= 86400 or not 1 <= timeout <= 30 or not 100 <= expected_code <= 599:
-        raise ValueError("Invalid interval, timeout, or expected HTTP code")
+    if (not 20 <= interval <= 86400 or not 1 <= timeout <= 30
+            or not 100 <= expected_code <= 599 or not 0 <= warning_days <= 365):
+        raise ValueError("Invalid interval, timeout, HTTP code or certificate warning threshold")
     keyword = str(spec.get("keyword", ""))
     if type(spec.get("public", False)) is not bool:
         raise ValueError("Public flag must be a boolean")
@@ -170,10 +176,10 @@ def validate_monitor(spec: dict, allow_private: bool = ALLOW_PRIVATE) -> dict:
         if port not in range(1, 65536):
             raise ValueError("Invalid URL port")
         addresses(parsed.hostname, port, allow_private)
-    elif kind == "tcp":
+    elif kind in ("tcp", "tls"):
         host, sep, port_text = target.rpartition(":")
         if not sep or not host or not port_text.isdigit() or not 1 <= int(port_text) <= 65535:
-            raise ValueError("TCP target must be host:port")
+            raise ValueError("TCP/TLS target must be host:port")
         addresses(host.strip("[]"), int(port_text), allow_private)
     elif kind == "dns":
         if not target or len(target) > 253 or any(x in target for x in ("/", ":", " ")):
@@ -186,6 +192,7 @@ def validate_monitor(spec: dict, allow_private: bool = ALLOW_PRIVATE) -> dict:
         "name": name, "kind": kind, "target": target,
         "interval_seconds": interval, "timeout_seconds": timeout,
         "expected_code": expected_code, "keyword": keyword,
+        "warning_days": warning_days,
         "public": int(spec.get("public", False) is True)
     }
 
@@ -224,12 +231,44 @@ def pinned_http_probe(target: str, timeout: int, expected_code: int, keyword: st
         raw_sock.close()
 
 
+class CertificateExpiringSoon(Exception):
+    """A verified TLS certificate is inside its configured expiration warning window."""
+
+
+def tls_certificate_probe(target: str, timeout: int, warning_days: int) -> str:
+    """Check a certificate using a pinned allowed address and verified SNI hostname."""
+    hostname, _, port_text = target.rpartition(":")
+    host = hostname.strip("[]")
+    port = int(port_text)
+    infos = addresses(host, port)
+    family, _kind, _proto, _canonical, sockaddr = infos[0]
+    raw_sock = socket.socket(family, socket.SOCK_STREAM)
+    try:
+        raw_sock.settimeout(timeout)
+        raw_sock.connect(sockaddr)
+        with ssl.create_default_context().wrap_socket(raw_sock, server_hostname=host) as conn:
+            cert = conn.getpeercert()
+            expiry_text = cert.get("notAfter")
+            if not expiry_text:
+                raise ValueError("Certificate expiry missing")
+            expiry_epoch = ssl.cert_time_to_seconds(expiry_text)
+    finally:
+        raw_sock.close()
+    remaining_days = (expiry_epoch - time.time()) / 86400
+    if remaining_days <= warning_days:
+        raise CertificateExpiringSoon("Certificate is near expiration")
+    return "Certificate valid; " + str(int(remaining_days)) + " days remaining"
+
+
 def probe(m: dict) -> tuple[str, float | None, str]:
     started = time.monotonic()
     kind, target, timeout = m["kind"], m["target"], m["timeout_seconds"]
     try:
+        detail = "OK"
         if kind == "http":
             pinned_http_probe(target, timeout, m["expected_code"], m["keyword"])
+        elif kind == "tls":
+            detail = tls_certificate_probe(target, timeout, m["warning_days"])
         elif kind == "tcp":
             hostname, _, p = target.rpartition(":")
             infos = addresses(hostname.strip("[]"), int(p))
@@ -242,7 +281,7 @@ def probe(m: dict) -> tuple[str, float | None, str]:
                 raise ValueError("No DNS results")
         else:
             return ("pending", None, "Awaiting push heartbeat")
-        return ("up", round((time.monotonic() - started) * 1000, 2), "OK")
+        return ("up", round((time.monotonic() - started) * 1000, 2), detail)
     except Exception as exc:
         return ("down", None, type(exc).__name__)
 
@@ -340,7 +379,7 @@ def active_maintenance(public_only: bool = False) -> bool:
 
 def monitor_list(public: bool = False) -> list[dict]:
     with db() as con:
-        sql = "SELECT id,name,kind,target,interval_seconds,timeout_seconds,expected_code,keyword,public,active,state,last_check,latency_ms,created_at FROM monitors"
+        sql = "SELECT id,name,kind,target,interval_seconds,timeout_seconds,expected_code,keyword,warning_days,public,active,state,last_check,latency_ms,created_at FROM monitors"
         if public:
             sql = "SELECT id,name,kind,public,active,state,last_check,latency_ms FROM monitors WHERE public=1"
         rows = [dict(x) for x in con.execute(sql + " ORDER BY id DESC").fetchall()]
@@ -761,7 +800,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     cur = con.execute("UPDATE monitors SET active=? WHERE id=?", (int(body["active"]), mid))
                 return self.send(200 if cur.rowcount else 404, {"ok": bool(cur.rowcount)})
             allowed = {"name", "target", "interval_seconds", "timeout_seconds",
-                       "expected_code", "keyword", "public"}
+                       "expected_code", "keyword", "warning_days", "public"}
             if not body or not set(body).issubset(allowed):
                 raise ValueError("Unknown or unsupported monitor settings")
             with db() as con:
@@ -770,12 +809,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     return self.send(404, {"error": "Unknown monitor"})
                 current = dict(existing)
                 spec = {key: current[key] for key in ("name", "kind", "target",
-                        "interval_seconds", "timeout_seconds", "expected_code", "keyword")}
+                        "interval_seconds", "timeout_seconds", "expected_code", "keyword", "warning_days")}
                 spec["public"] = bool(current["public"])
                 spec.update(body)
                 validated = validate_monitor(spec)
                 reset = any(validated[key] != current[key] for key in
-                            ("target", "expected_code", "keyword"))
+                            ("target", "expected_code", "keyword", "warning_days"))
                 changes = ", ".join(key + "=?" for key in validated)
                 if reset:
                     changes += ", state='pending', failures=0, latency_ms=NULL, last_check=NULL"

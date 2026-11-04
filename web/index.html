@@ -85,13 +85,17 @@
   <dialog id="create-dialog" aria-labelledby="create-heading">
     <form method="dialog" id="monitor-form" class="modal-form">
       <div class="modal-head"><div><div class="eyebrow small" id="monitor-form-caption">NEW MONITOR</div><h2 id="create-heading">Add a service</h2></div><button class="close-button" id="close-modal" value="cancel" type="button" aria-label="Close">×</button></div>
-      <p>Monitor a web endpoint, TCP port, DNS name, or external heartbeat.</p>
+      <p>Monitor a website, TCP port, DNS name, TLS certificate, or external heartbeat.</p>
       <label for="monitor-name">Service name</label><input name="name" id="monitor-name" maxlength="100" required placeholder="e.g. API Gateway">
-      <label for="monitor-type">Check type</label><select name="kind" id="monitor-type"><option value="http">HTTP / HTTPS</option><option value="tcp">TCP port</option><option value="dns">DNS resolution</option><option value="push">Push heartbeat</option></select>
+      <label for="monitor-type">Check type</label><select name="kind" id="monitor-type"><option value="http">HTTP / HTTPS</option><option value="tcp">TCP port</option><option value="dns">DNS resolution</option><option value="tls">TLS certificate</option><option value="push">Push heartbeat</option></select>
       <label for="monitor-target" id="target-label">Endpoint URL</label><input name="target" id="monitor-target" placeholder="https://example.com/health">
       <div class="field-pair" id="http-options">
         <div><label for="monitor-expected">Expected HTTP status</label><input type="number" min="100" max="599" name="expected_code" id="monitor-expected" value="200"></div>
         <div><label for="monitor-keyword">Expected response keyword</label><input name="keyword" id="monitor-keyword" maxlength="200" placeholder="Optional"></div>
+      </div>
+      <div id="tls-options" hidden>
+        <label for="monitor-warning-days">Warn before certificate expiry (days)</label>
+        <input type="number" min="0" max="365" name="warning_days" id="monitor-warning-days" value="14">
       </div>
       <div class="field-pair"><div><label for="monitor-interval">Interval (seconds)</label><input type="number" min="20" max="86400" name="interval_seconds" id="monitor-interval" value="60"></div><div><label for="monitor-timeout">Timeout (seconds)</label><input type="number" min="1" max="30" name="timeout_seconds" id="monitor-timeout" value="8"></div></div>
       <label class="checkbox-row"><input type="checkbox" name="public" id="monitor-public"><span>Show this service on the public status page</span></label>

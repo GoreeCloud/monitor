@@ -17,7 +17,7 @@
 ## Next: monitoring depth
 
 - JSON queries, configurable HTTP methods and authentication.
-- ICMP, DNS record types, WebSocket, TLS certificate expiry and TCP protocols.
+- ICMP, DNS record types, WebSocket, richer TLS certificate details/badges, domain expiry and additional TCP protocols.
 - Docker monitoring through a tightly restricted intermediary, not a privileged socket mounted into the app.
 - Database drivers, message brokers and supported process monitoring.
 - Per-monitor downtime thresholds, uptime windows and richer visualizations.

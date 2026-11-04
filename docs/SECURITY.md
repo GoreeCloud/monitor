@@ -55,3 +55,7 @@ Private active maintenance windows suppress configured operational notifications
 ## Push token lifecycle and validated mutations
 
 The admin API supports one-time push token rotation behind session authentication and per-session CSRF validation. The database stores only the SHA-256 digest of each new random token; previous tokens stop matching as soon as rotation succeeds. Administrator monitor edits use a field allowlist, full parameter validation, and atomic SQL updates. Rotating a token or changing a check target/expectation resets stale health state to pending. Operators must update their heartbeat sender manually after rotation; no secret is sent by email or written into application history.
+
+## TLS monitor security notes
+
+TLS certificate probes use the same pinned-network-address policy as HTTP probes. A Python standard-library verification context checks system-trust CA chains and the requested hostname via SNI. Do not disable certificate verification to force a passing result. Expiration windows represent configured warning policy, not evidence of automated renewal. Private network targets must be explicitly enabled, and existing protections against loopback/link-local/reserved endpoints remain in effect. Certificate error output is intentionally summarized rather than retaining raw private connection details.

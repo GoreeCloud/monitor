@@ -80,3 +80,9 @@ Operational maintenance checks consider all active windows, while public status 
 ## Monitor updates and secret rotation
 
 Monitor type is immutable to preserve the correct authentication/probe model. The PATCH endpoint admits a strict allowlist of configuration fields and uses the existing validation rules. Health-affecting changes reset stale state. POST /api/monitors/{id}/rotate-token replaces the stored hash of a push URL's secret and returns a new token once; old tokens are immediately rejected. This release does not include a dual-token grace period, remote client reconfiguration, or a credential delivery service.
+
+## TLS monitoring
+
+The `tls` probe validates `host:port` against the established target network policy and connects to a pinned allowed address. It creates a platform TLS verification context and uses the original hostname for SNI and hostname verification. `getpeercert()` supplies the standard X.509 expiry timestamp, which is compared with the per-monitor `warning_days` threshold. Entering that warning window sets the probe result to DOWN (after the configured two-consecutive-failure state threshold), enabling the existing transition notification mechanism. Raw certificate data and complete target URLs are not emitted into public status output or logs.
+
+An additive SQLite migration creates `warning_days INTEGER NOT NULL DEFAULT 14` on existing databases. The `tls` monitor has no custom root CA, authentication, chain export, certificate renewal action or domain WHOIS support yet. Runtime network-level and expiry-edge acceptance tests remain important.

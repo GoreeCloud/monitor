@@ -9,6 +9,7 @@ GoreeCloud Monitor is a privacy-first, self-hosted uptime, service-health and in
 ## What works in the initial implementation
 
 - HTTP/HTTPS GET checks with status-code and optional keyword validation.
+- Dedicated TLS certificate validity and approaching-expiration checks with configurable warning days.
 - TCP port checks, DNS name resolution checks, and token-based push heartbeats.
 - Background scheduler, per-monitor intervals, timeouts and consecutive-failure thresholds.
 - SQLite WAL persistence for monitors and bounded heartbeat history; consistent non-overwriting backup utility.
@@ -139,3 +140,7 @@ With GC_DATA_DIR pointing to the active data directory, create an online SQLite 
 The destination must not already exist. The tool verifies SQLite integrity, writes a restrictive 0600 file, avoids overwriting existing backups, and returns a SHA-256 digest. Store backup media securely, verify restore in isolation, and see [operations](docs/OPERATIONS.md) for exact precautions. No automatic offsite backup or restore automation is provided.
 
 Monitor types are immutable after creation. Changing a health-check target or HTTP expected response resets the displayed state to pending until the next check. Push-token rotation also resets state. The new token appears only in the rotation response and cannot be retrieved later.
+
+### TLS certificate checks
+
+Create a **TLS certificate** monitor with target `example.com:443` and a warning threshold of 0–365 days (default 14). The probe pins a validated target address, negotiates TLS with the configured hostname using the system trust store, and reports a failure when validation fails or the certificate enters its warning window. Configure a notification destination separately to receive alerts; the feature does not implement registrar/domain-expiration or certificate-chain inventories.

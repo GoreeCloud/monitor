@@ -41,7 +41,7 @@ function drawMonitors() {
   if (!monitors.length) return empty(container, "◈", "Your workspace is ready", "Add your first service to start collecting availability and response-time data.");
   for (const m of monitors) {
     const row = el("div", "monitor-item");
-    const icon = el("div", "service-icon", {http:"↗",tcp:"⇄",dns:"◎",push:"↓"}[m.kind] || "◈");
+    const icon = el("div", "service-icon", {http:"↗",tcp:"⇄",dns:"◎",tls:"♧",push:"↓"}[m.kind] || "◈");
     const text = el("div", "service-copy");
     text.append(el("span", "service-name", m.name), el("span", "service-target", m.kind === "push" ? "Push heartbeat" : m.target));
     const recent = state.stats[String(m.id)];
@@ -288,6 +288,7 @@ function openMonitorDialog(m = null) {
     $("#monitor-public").checked = m.public;
     $("#monitor-expected").value = String(m.expected_code ?? 200);
     $("#monitor-keyword").value = m.keyword || "";
+    $("#monitor-warning-days").value = String(m.warning_days ?? 14);
   }
   $("#monitor-type").onchange();
   $("#monitor-error").textContent = "";
@@ -316,8 +317,10 @@ function setupEvents() {
     $("#monitor-target").disabled=isPush;
     $("#monitor-target").required=!isPush;
     $("#http-options").hidden=$("#monitor-type").value!=="http";
-    $("#target-label").textContent=isPush?"Endpoint generated after creation":"Endpoint / host";
-    $("#monitor-target").placeholder={http:"https://example.com/health",tcp:"example.com:443",dns:"example.com",push:"Generated automatically"}[$("#monitor-type").value];
+    $("#tls-options").hidden=$("#monitor-type").value!=="tls";
+    $("#target-label").textContent=isPush?"Endpoint generated after creation":
+      ($("#monitor-type").value==="tls"?"Certificate host and port":"Endpoint / host");
+    $("#monitor-target").placeholder={http:"https://example.com/health",tcp:"example.com:443",dns:"example.com",tls:"example.com:443",push:"Generated automatically"}[$("#monitor-type").value];
   };
   $("#monitor-form").addEventListener("submit",async e=>{
     e.preventDefault();$("#monitor-error").textContent="";
@@ -333,6 +336,7 @@ function setupEvents() {
       payload.expected_code=Number(data.get("expected_code"));
       payload.keyword=String(data.get("keyword")||"");
     }
+    if (kind==="tls") payload.warning_days=Number(data.get("warning_days"));
     if (!editing) payload.kind=kind;
     try {
       const result = editing

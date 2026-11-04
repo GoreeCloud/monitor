@@ -17,7 +17,7 @@ GoreeCloud Monitor is a self-hosted, privacy-first service intelligence platform
 | --- | --- | --- | --- |
 | 1 | Core uptime and availability | **Partial:** scheduler, failure thresholds, recovery, states, history | Per-monitor retry policy, historical uptime calculations |
 | 2 | HTTP/HTTPS monitoring | **Partial:** configurable GET, expected status, keyword, TLS verification | All methods, JSON queries, auth, browser probes, proxy, redirect policy |
-| 3 | Network/connectivity | **Partial:** TCP connect and DNS resolution | ICMP, DNS record types, SNMP, NTP, SMTP, WebSocket, SIP, RADIUS, Tailscale, Globalping |
+| 3 | Network/connectivity | **Partial:** TCP, DNS resolution and TLS certificate probe | ICMP, DNS record types, SNMP, NTP, SMTP, WebSocket, SIP, RADIUS, Tailscale, Globalping |
 | 4 | Server/container/process | **Planned** | Docker API with restricted socket proxy, systemd, PM2 |
 | 5 | Databases and message brokers | **Planned** | PostgreSQL, MySQL, SQL Server, Oracle, MongoDB, Redis, Kafka, RabbitMQ, MQTT, gRPC |
 | 6 | Game servers | **Planned** | Steam protocol, GameDig integrations |
@@ -27,7 +27,7 @@ GoreeCloud Monitor is a self-hosted, privacy-first service intelligence platform
 | 10 | Incident management | **Partial:** create/list/resolve and opt-in RSS | Incident resolve/edit, association, public publishing, automated incidents |
 | 11 | Public/private status | **Partial:** opt-in status page, incidents, maintenance, RSS | Multiple branded pages, groups, RSS, incident display, custom domains |
 | 12 | Maintenance | **Partial:** one-time global maintenance records, create/delete UI and private-by-default public announcements | Per-monitor scopes, recurring schedules, alert suppression |
-| 13 | Certificates/domains | **Partial:** HTTPS TLS validation | Expiration warnings, certificate chain, domain renewals |
+| 13 | Certificates/domains | **Partial:** verified TLS hostname/chain check, configurable certificate-expiry warning monitor | Certificate details/badges, domain expiry and renewals |
 | 14 | Dashboard and UI | **Partial:** GC UI-inspired responsive console | Design-token package integration, charts, full management forms, visual QA |
 | 15 | Status badges | **Partial:** opt-in SVG status badge | Uptime/ping/certificate badges |
 | 16 | APIs/webhooks | **Partial:** authenticated JSON and push | Stable versioned API, webhooks, key management |
@@ -77,3 +77,7 @@ These changes are a development-stage security improvement, not a full security 
 ## Monitor management update (2026-11-04)
 
 Administrators can modify validated monitor names, endpoints, intervals, timeouts, visibility, and HTTP expectations without changing monitor type or leaking hashed push secrets. A separate CSRF-protected push token rotation endpoint atomically invalidates the previous token. Changing check definitions or rotating a token resets the last service state to pending. The interface provides edit and rotate controls; integration tests cover invalid fields, authorization and revoked tokens.
+
+## TLS certificate monitor increment (2026-11-04)
+
+Added a dedicated `tls` monitor accepting `host:port`. It verifies the TLS peer certificate through the platform trust store using SNI, enforces the configured pre-expiration threshold, records a sanitized failure state, and uses the existing outage/recovery notification integration where configured. The monitor schema includes `warning_days` with a private, backwards-compatible migration. Unit/integration tests exercise address pinning, hostname propagation, impending expiry, invalid configuration and legacy database migration. Expiration badges, domain registrar checks and all-platform TLS acceptance are still pending.
