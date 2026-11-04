@@ -75,6 +75,27 @@ The no-pull flag requires a pre-cached base image; do not infer that an
 uncached offline build will work. No server or host port needs to be published
 for the CI acceptance script.
 
+## Automated desktop/mobile browser acceptance (development CI)
+
+The isolated CI workflow runs a preinstalled headless Chrome browser, Node.js
+22+, and the project's dependency-free `tests/browser_smoke.mjs` script:
+
+    node tests/browser_smoke.mjs
+
+This starts a **loopback-only development instance** backed by temporary
+SQLite storage, exercises real login, private push-monitor creation, search,
+filtering, keyboard navigation and public/private status boundaries, and
+checks desktop (1280px) and mobile (390px) layouts for page overflow. The
+mobile navigation test verifies every destination is visible in its two-row
+grid. It generates four screenshot files under `artifacts/browser-ui/`; the
+CI artifact is retained for three days for human inspection.
+
+The test uses a fake CI password and dummy push service. Before screenshot
+capture, it scrubs the generated one-time push URL from the notice. Never run
+this script pointed at a production instance, export real session data into
+artifacts, or treat its CI screenshots as proof of manual screen-reader,
+cross-browser, accessible contrast, TLS reverse-proxy, or Android acceptance.
+
 ## Operational monitoring
 
 The /healthz endpoint reports basic service responsiveness, not dependency health or proof that all scheduled checks are executing. Protected /metrics can provide operational counters when configured with a strong GC_METRICS_TOKEN. Review logs for database errors and notify connector failures, but never log or publish credentials, heartbeat tokens or private URLs.

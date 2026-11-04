@@ -32,7 +32,9 @@ Tokens supply Canvas, Surface, Lens, typography, accent, semantic colors, spacin
 
 ## Acceptance gaps
 
-This is a verified source-token integration, not a complete GC UI component migration. Full component consistency, color-contrast checks, keyboard and screen-reader behavior, mobile screenshots, cross-browser visual review and founder visual acceptance remain outstanding. Unit and syntax tests alone cannot establish UI acceptance.
+This is a verified source-token integration, not a complete GC UI component migration. Automated headless Chrome acceptance on the isolated development branch now verifies actual login, monitor creation, search/status filtering, genuine Enter-key navigation, `aria-current`, private/public status isolation and desktop/mobile viewport boundaries. It captures **four fixture-only screenshots** (login/desktop workspace/mobile workspace/mobile public page). A screenshot-led review identified a clipped horizontal mobile menu; the responsive menu now presents all five destinations in a two-row grid without horizontal scrolling. The specific changes are **development-only until reviewed and merged**.
+
+**Still outstanding:** independent screen-reader and complete keyboard traversal, WCAG color-contrast evaluation, dark/light appearance QA across browsers, Android/manual device testing, complete GC UI component adoption, and founder visual approval. Automated Chrome and screenshots alone cannot establish full visual or accessibility acceptance.
 
 ## Upgrade procedure
 

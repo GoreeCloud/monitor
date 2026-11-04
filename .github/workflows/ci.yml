@@ -43,3 +43,27 @@ jobs:
         run: docker build --tag goreecloud-monitor:ci .
       - name: Check isolated container runtime and security boundaries
         run: python3 tests/container_smoke.py goreecloud-monitor:ci
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify preinstalled browser and Node
+        run: |
+          node --version
+          command -v google-chrome || command -v chromium || command -v chromium-browser
+      - name: Exercise local-only Chrome desktop and mobile UI
+        run: node tests/browser_smoke.mjs
+      - name: Save fixture-only browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: monitor-browser-smoke
+          path: artifacts/browser-ui/*.png
+          if-no-files-found: ignore
+          retention-days: 3
