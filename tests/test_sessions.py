@@ -5,6 +5,7 @@ import json
 import threading
 import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 
 from monitor import server
 
@@ -57,6 +58,18 @@ class SessionLifecycleTests(unittest.TestCase):
             self.assertEqual(len(server.SESSIONS), server.MAX_SESSIONS)
             self.assertIn(fresh, server.SESSIONS)
             self.assertNotIn("legacy-000", server.SESSIONS)
+
+    def test_concurrent_session_creation_preserves_cap_and_uniqueness(self):
+        # Exercise the same global table used by concurrent HTTP handlers.
+        total = server.MAX_SESSIONS * 3
+        with ThreadPoolExecutor(max_workers=12) as executor:
+            ids = list(executor.map(
+                lambda _i: server.create_session()[0], range(total)))
+        self.assertEqual(len(set(ids)), total)
+        with server.SESSIONS_LOCK:
+            self.assertEqual(len(server.SESSIONS), server.MAX_SESSIONS)
+            for session_id in server.SESSIONS:
+                self.assertIn(session_id, ids)
 
     def test_expired_cookie_is_rejected_and_removed(self):
         with server.SESSIONS_LOCK:
