@@ -68,3 +68,7 @@ The optional monitor.backup module connects to SQLite's online-backup API with t
 ## Recent check pass-rate analytics
 
 The authenticated /api/stats endpoint reports recorded check counts, successful counts, success rate and average response latency over the previous 24 hours. Public status JSON includes aggregates only for monitors explicitly marked public. This is a sample-based metric, **not time-weighted uptime**; records with no recent checks yield a null percentage.
+
+## Service health and readiness
+
+The /healthz endpoint only establishes that the Python HTTP server responds. The separate /readyz endpoint queries the SQLite monitor table and returns HTTP 503 when the database is unavailable. The example Docker image uses this readiness endpoint for its container health check. These checks do not prove that individual monitors or scheduled probes are operational, and an external runtime deployment remains unverified.

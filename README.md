@@ -56,6 +56,7 @@ Compose binds only to 127.0.0.1:3001 and requires GC_COOKIE_SECURE=1; access the
 | Method | Endpoint | Authentication | Purpose |
 | --- | --- | --- | --- |
 | GET | /healthz | Public | Minimal process health |
+| GET | /readyz | Public | SQLite-backed readiness, 503 when unavailable |
 | POST | /api/login | Password | Start administrator session |
 | POST | /api/logout | Session + CSRF | End session |
 | GET | /api/me | Session | Session and CSRF status |

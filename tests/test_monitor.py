@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import tempfile
 import threading
 import http.client
@@ -105,6 +106,16 @@ class HttpIntegrationTests(unittest.TestCase):
         status, payload, headers = self.call("POST", "/api/login", {"password":"strong-test-password-not-production"})
         self.assertEqual(status, 200)
         return headers["Set-Cookie"].split(";")[0], json.loads(payload)["csrf"]
+
+    def test_readiness_requires_working_database(self):
+        self.assertEqual(self.call("GET", "/healthz")[0], 200)
+        status, data, _ = self.call("GET", "/readyz")
+        self.assertEqual(status, 200)
+        self.assertTrue(json.loads(data)["ready"])
+        with patch.object(server, "db", side_effect=sqlite3.OperationalError("unavailable")):
+            status, data, _ = self.call("GET", "/readyz")
+            self.assertEqual(status, 503)
+            self.assertFalse(json.loads(data)["ready"])
 
     def test_authorization_and_csrf(self):
         self.assertEqual(self.call("GET", "/api/monitors")[0],401)

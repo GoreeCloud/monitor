@@ -513,6 +513,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/healthz":
             return self.send(200, {"ok": True})
+        if path == "/readyz":
+            try:
+                with db() as con:
+                    con.execute("SELECT COUNT(*) FROM monitors").fetchone()
+                return self.send(200, {"ready": True})
+            except sqlite3.Error:
+                return self.send(503, {"ready": False})
         if path in ("/", "/status", "/assets/app.js", "/assets/style.css"):
             return self.static(path)
         if path == "/api/public":
