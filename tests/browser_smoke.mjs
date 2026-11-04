@@ -178,6 +178,12 @@ async function main() {
       "authenticated workspace");
     assert.equal(await browser.evaluate(
       'document.querySelectorAll("[aria-current=page]").length'), 1);
+    const addButton = await browser.evaluate(`({
+      text: document.querySelector("#new-monitor").textContent,
+      decorative: document.querySelector("#new-monitor span[aria-hidden=true]")?.textContent,
+    })`);
+    assert.equal(addButton.decorative, "+", "add-monitor icon uses portable glyph");
+    assert.ok(addButton.text.includes("Add monitor"));
     await checkViewport(browser, "desktop", 1280, 800, false);
 
     // Create a private push monitor using the actual application form.
