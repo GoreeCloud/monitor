@@ -22,3 +22,14 @@ jobs:
         run: |
           test ! -e secrets/admin_password.txt
           test ! -e .env
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build standalone application image
+        run: docker build --tag goreecloud-monitor:ci .
+      - name: Check isolated container runtime and security boundaries
+        run: python3 tests/container_smoke.py goreecloud-monitor:ci

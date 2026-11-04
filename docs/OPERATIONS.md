@@ -50,6 +50,31 @@ The helper uses SQLite's consistent backup API, verifies snapshot integrity, cre
 
 Do not delete production data, copy back a scratch restoration, or change running services solely by following this reference document.
 
+## Isolated container acceptance
+
+The CI workflow builds the image and runs the local-only acceptance script:
+
+    docker build --tag goreecloud-monitor:ci .
+    python3 tests/container_smoke.py goreecloud-monitor:ci
+
+The script inspects the image's nonroot user and retained healthcheck, then
+starts an ephemeral container with a read-only filesystem, temporary writable
+data storage, dropped capabilities, and **no external network access or
+published host ports**. It checks readiness, authentication, CSRF protection,
+private status isolation, push heartbeat delivery, cleanup, and logout.
+Only an unmistakable CI-only password fixture is used. This is an integration
+smoke test, not production certification, reverse-proxy testing, or a
+substitute for independent security review.
+
+Podman's default OCI image format may discard Dockerfile HEALTHCHECK metadata.
+For local Podman acceptance requiring that metadata, build with:
+
+    podman build --pull=never --format docker --tag goreecloud-monitor:local .
+
+The no-pull flag requires a pre-cached base image; do not infer that an
+uncached offline build will work. No server or host port needs to be published
+for the CI acceptance script.
+
 ## Operational monitoring
 
 The /healthz endpoint reports basic service responsiveness, not dependency health or proof that all scheduled checks are executing. Protected /metrics can provide operational counters when configured with a strong GC_METRICS_TOKEN. Review logs for database errors and notify connector failures, but never log or publish credentials, heartbeat tokens or private URLs.
