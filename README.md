@@ -14,7 +14,8 @@ GoreeCloud Monitor is a privacy-first, self-hosted uptime, service-health and in
 - SQLite WAL persistence for monitors and bounded heartbeat history; consistent non-overwriting backup utility.
 - Private authenticated administrator console with session cookie and anti-CSRF token.
 - Sample-based 24-hour check success rates, labeled distinctly from uptime.
-- Creation, pausing, resuming and removal of monitors; recent activity and summary cards.
+- Creation, editing, pausing, resuming and removal of monitors; HTTP response expectations, recent activity and summary cards.
+- One-time push token rotation with immediate revocation of the previous heartbeat URL.
 - Public status page with opt-in visibility (monitors and maintenance notices default to private).
 - Manual incident creation/resolution and one-time maintenance records with dashboard controls.
 - Public incident RSS feed, opt-in SVG status badges, and protected Prometheus-format metrics.
@@ -61,7 +62,8 @@ Compose binds only to 127.0.0.1:3001 and requires GC_COOKIE_SECURE=1; access the
 | POST | /api/logout | Session + CSRF | End session |
 | GET | /api/me | Session | Session and CSRF status |
 | GET, POST | /api/monitors | Session (POST + CSRF) | List and create monitors |
-| PATCH, DELETE | /api/monitors/{id} | Session + CSRF | Pause, resume or delete |
+| PATCH, DELETE | /api/monitors/{id} | Session + CSRF | Edit validated configuration, pause, resume or delete |
+| POST | /api/monitors/{id}/rotate-token | Session + CSRF | Regenerate a push secret and revoke the old one |
 | GET | /api/summary | Session | Monitor counts |
 | GET | /api/history | Session | Recent heartbeats |
 | GET | /api/stats | Session | 24-hour check success rate and average latency |
@@ -135,3 +137,5 @@ With GC_DATA_DIR pointing to the active data directory, create an online SQLite 
     python -m monitor.backup /a/preexisting/protected/directory/monitor-2026-11-04.sqlite3
 
 The destination must not already exist. The tool verifies SQLite integrity, writes a restrictive 0600 file, avoids overwriting existing backups, and returns a SHA-256 digest. Store backup media securely, verify restore in isolation, and see [operations](docs/OPERATIONS.md) for exact precautions. No automatic offsite backup or restore automation is provided.
+
+Monitor types are immutable after creation. Changing a health-check target or HTTP expected response resets the displayed state to pending until the next check. Push-token rotation also resets state. The new token appears only in the rotation response and cannot be retrieved later.

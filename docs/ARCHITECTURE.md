@@ -76,3 +76,7 @@ The /healthz endpoint only establishes that the Python HTTP server responds. The
 ### Private versus public maintenance status
 
 Operational maintenance checks consider all active windows, while public status rendering considers only explicitly published active windows. This prevents a nonpublic maintenance schedule from exposing its existence through otherwise public monitor status labels. The first implementation still uses global rather than per-monitor maintenance scope.
+
+## Monitor updates and secret rotation
+
+Monitor type is immutable to preserve the correct authentication/probe model. The PATCH endpoint admits a strict allowlist of configuration fields and uses the existing validation rules. Health-affecting changes reset stale state. POST /api/monitors/{id}/rotate-token replaces the stored hash of a push URL's secret and returns a new token once; old tokens are immediately rejected. This release does not include a dual-token grace period, remote client reconfiguration, or a credential delivery service.

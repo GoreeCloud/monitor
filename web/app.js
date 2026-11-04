@@ -65,7 +65,26 @@ function drawMonitors() {
       try { await request("/api/monitors/" + m.id,{method:"DELETE"}); await load(); }
       catch (err) { message(err.message); }
     };
-    controls.append(toggle,remove);row.append(controls);container.append(row);
+    const edit = el("button", "", "✎");
+    edit.title = "Edit monitor";
+    edit.setAttribute("aria-label", "Edit " + m.name);
+    edit.onclick = () => openMonitorDialog(m);
+    controls.append(edit, toggle);
+    if (m.kind === "push") {
+      const rotate = el("button", "", "⟳");
+      rotate.title = "Rotate push token";
+      rotate.setAttribute("aria-label", "Rotate push token for " + m.name);
+      rotate.onclick = async () => {
+        if (!confirm("Rotate push token for " + m.name + "? The previous heartbeat URL will stop working immediately.")) return;
+        try {
+          const result = await request("/api/monitors/" + m.id + "/rotate-token", {method:"POST"});
+          message("New push URL (copy now; shown only once): " + location.origin + "/push/" + result.push_token);
+          await load();
+        } catch(err) { message(err.message); }
+      };
+      controls.append(rotate);
+    }
+    controls.append(remove);row.append(controls);container.append(row);
   }
 }
 function drawActivity() {
@@ -252,6 +271,29 @@ async function showPublic() {
     }
   } catch (err) { empty(list,"!","Status unavailable",err.message); }
 }
+function openMonitorDialog(m = null) {
+  const form = $("#monitor-form");
+  form.reset();
+  form.dataset.editing = m ? String(m.id) : "";
+  $("#monitor-form-caption").textContent = m ? "EDIT MONITOR" : "NEW MONITOR";
+  $("#create-heading").textContent = m ? "Edit service" : "Add a service";
+  $("#monitor-save").textContent = m ? "Save changes →" : "Create monitor →";
+  $("#monitor-type").disabled = !!m;
+  if (m) {
+    $("#monitor-name").value = m.name;
+    $("#monitor-type").value = m.kind;
+    $("#monitor-target").value = m.target;
+    $("#monitor-interval").value = String(m.interval_seconds);
+    $("#monitor-timeout").value = String(m.timeout_seconds);
+    $("#monitor-public").checked = m.public;
+    $("#monitor-expected").value = String(m.expected_code ?? 200);
+    $("#monitor-keyword").value = m.keyword || "";
+  }
+  $("#monitor-type").onchange();
+  $("#monitor-error").textContent = "";
+  $("#create-dialog").showModal();
+}
+
 function setupEvents() {
   $("#login-form").addEventListener("submit",async e=>{
     e.preventDefault();$("#login-error").textContent="";
@@ -266,26 +308,44 @@ function setupEvents() {
   };
   $("#refresh").onclick=async()=>{try{await load();message("");}catch(err){message(err.message);}};
   document.querySelectorAll("[data-view]").forEach(button=>button.onclick=()=>setView(button.dataset.view));
-  $("#new-monitor").onclick=()=>$("#create-dialog").showModal();
+  $("#new-monitor").onclick=()=>openMonitorDialog();
   $("#cancel-monitor").onclick=()=>$("#create-dialog").close();
   $("#close-modal").onclick=()=>$("#create-dialog").close();
   $("#monitor-type").onchange=()=>{
     const isPush=$("#monitor-type").value==="push";
     $("#monitor-target").disabled=isPush;
     $("#monitor-target").required=!isPush;
+    $("#http-options").hidden=$("#monitor-type").value!=="http";
     $("#target-label").textContent=isPush?"Endpoint generated after creation":"Endpoint / host";
     $("#monitor-target").placeholder={http:"https://example.com/health",tcp:"example.com:443",dns:"example.com",push:"Generated automatically"}[$("#monitor-type").value];
   };
   $("#monitor-form").addEventListener("submit",async e=>{
     e.preventDefault();$("#monitor-error").textContent="";
     const data=new FormData(e.currentTarget);
-    const payload={name:data.get("name"),kind:data.get("kind"),target:data.get("target")||"",interval_seconds:Number(data.get("interval_seconds")),timeout_seconds:Number(data.get("timeout_seconds")),public:data.has("public")};
+    const editing = e.currentTarget.dataset.editing;
+    const kind = $("#monitor-type").value;
+    const payload = {
+      name:data.get("name"),target:$("#monitor-target").value||"",
+      interval_seconds:Number(data.get("interval_seconds")),
+      timeout_seconds:Number(data.get("timeout_seconds")),public:data.has("public")
+    };
+    if (kind==="http") {
+      payload.expected_code=Number(data.get("expected_code"));
+      payload.keyword=String(data.get("keyword")||"");
+    }
+    if (!editing) payload.kind=kind;
     try {
-      const created=await request("/api/monitors",{method:"POST",body:JSON.stringify(payload)});
-      $("#create-dialog").close();e.currentTarget.reset();$("#monitor-type").onchange();
+      const result = editing
+        ? await request("/api/monitors/"+editing, {method:"PATCH",body:JSON.stringify(payload)})
+        : await request("/api/monitors",{method:"POST",body:JSON.stringify(payload)});
+      $("#create-dialog").close();
+      e.currentTarget.reset();
+      e.currentTarget.dataset.editing="";
+      $("#monitor-type").disabled=false;
+      $("#monitor-type").onchange();
       await load();
-      if(created.push_token) message("Push token (copy now; shown only once): "+location.origin+"/push/"+created.push_token);
-      else message("Monitor created. Your first check will run shortly.");
+      if(result.push_token) message("Push URL (copy now; shown only once): "+location.origin+"/push/"+result.push_token);
+      else message(editing ? "Monitor updated." : "Monitor created. Your first check will run shortly.");
     } catch(err) { $("#monitor-error").textContent=err.message; }
   });
 }

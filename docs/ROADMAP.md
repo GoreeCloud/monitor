@@ -27,7 +27,7 @@
 - Recurring, scoped maintenance schedules and incident lifecycles.
 - Multiple branded public status pages with incident timeline and RSS.
 - Harden the initial Prometheus-format metrics, SVG status badge and RSS endpoints; add a versioned API and integration guides.
-- Monitor tags, grouping, advanced filtering and bulk editing.
+- Monitor tags, grouping, advanced filtering and bulk editing; improve edit permissions and lifecycle audit trails.
 - Extend consistent backup snapshots with isolated restore testing, verified migrations and optional encrypted/offsite retention.
 
 ## Long-term

@@ -30,3 +30,7 @@ dialog{background:linear-gradient(155deg,#1e2b45,#111b2e);color:var(--gc-text);b
 
 .check-rate{color:#abb6d7;border:1px solid rgba(160,174,216,.16);background:rgba(112,135,193,.08);border-radius:9px;padding:6px 8px;font-size:10px;font-weight:670;white-space:nowrap;font-variant-numeric:tabular-nums}
 @media(max-width:850px){.monitor-list .check-rate{display:none}}
+
+.row-actions {flex-wrap:wrap;justify-content:flex-end;max-width:78px;}
+@media (min-width:1121px) {.row-actions {max-width:145px;}}
+#http-options[hidden] {display:none;}

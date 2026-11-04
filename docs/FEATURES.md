@@ -16,12 +16,12 @@ GoreeCloud Monitor is a self-hosted, privacy-first service intelligence platform
 | # | Capability domain | Current scope | Next implementation target |
 | --- | --- | --- | --- |
 | 1 | Core uptime and availability | **Partial:** scheduler, failure thresholds, recovery, states, history | Per-monitor retry policy, historical uptime calculations |
-| 2 | HTTP/HTTPS monitoring | **Partial:** GET, expected status, keyword, TLS verification | All methods, JSON queries, auth, browser probes, proxy, redirect policy |
+| 2 | HTTP/HTTPS monitoring | **Partial:** configurable GET, expected status, keyword, TLS verification | All methods, JSON queries, auth, browser probes, proxy, redirect policy |
 | 3 | Network/connectivity | **Partial:** TCP connect and DNS resolution | ICMP, DNS record types, SNMP, NTP, SMTP, WebSocket, SIP, RADIUS, Tailscale, Globalping |
 | 4 | Server/container/process | **Planned** | Docker API with restricted socket proxy, systemd, PM2 |
 | 5 | Databases and message brokers | **Planned** | PostgreSQL, MySQL, SQL Server, Oracle, MongoDB, Redis, Kafka, RabbitMQ, MQTT, gRPC |
 | 6 | Game servers | **Planned** | Steam protocol, GameDig integrations |
-| 7 | Push and scheduled jobs | **Partial:** token-based POST, per-token push rate limit, missed heartbeat check | Timing details, failure messages, token rotation |
+| 7 | Push and scheduled jobs | **Partial:** token-based POST, token rotation, per-token push rate limit, missed heartbeat check | Timing details, failure messages, token rotation |
 | 8 | Performance and analytics | **Partial:** recent heartbeat, response time and explicit 24-hour check pass-rate analytics | Time-weighted uptime, trends, charts, reports and custom retention |
 | 9 | Alerts and notifications | **Partial:** GoreeCloud Notify v1 outage/recovery publish connector | Durable retries, SMTP, webhook and provider integrations |
 | 10 | Incident management | **Partial:** create/list/resolve and opt-in RSS | Incident resolve/edit, association, public publishing, automated incidents |
@@ -37,7 +37,7 @@ GoreeCloud Monitor is a self-hosted, privacy-first service intelligence platform
 | 20 | Deployment/platform | **Partial:** Python service and container recipe | Native service installers, platform CI and signed releases |
 | 21 | Data storage | **Partial:** SQLite WAL and bounded history | MariaDB, migrations, retention policy controls |
 | 22 | Backup/recovery | **Partial:** consistent SQLite snapshot utility with integrity check and no-overwrite semantics | Full restore tests, export/import, encryption and automation |
-| 23 | Organization/admin | **Partial:** list, create, pause, resume, delete | Groups, nested hierarchy, tags, bulk editing |
+| 23 | Organization/admin | **Partial:** list, create, edit, pause, resume, delete and push credential rotation | Groups, nested hierarchy, tags, bulk editing |
 | 24 | Reliability/resilience | **Partial:** bounded worker pool, retry threshold | HA design, queue-backed alert delivery, backups, telemetry |
 | 25 | GoreeCloud ecosystem | **Planned** | Explicit verified service endpoints and consent-based integration |
 | 26 | UX/accessibility | **Partial:** responsive layout, semantic controls, reduced motion | Full GC UI component use, WCAG audit and manual screenshot review |
@@ -73,3 +73,7 @@ These are criteria, not claims of independently verified live acceptance.
 - Added regression tests for maintenance-publication isolation, legacy database migration, push throttling and snapshot integrity.
 
 These changes are a development-stage security improvement, not a full security review or production release.
+
+## Monitor management update (2026-11-04)
+
+Administrators can modify validated monitor names, endpoints, intervals, timeouts, visibility, and HTTP expectations without changing monitor type or leaking hashed push secrets. A separate CSRF-protected push token rotation endpoint atomically invalidates the previous token. Changing check definitions or rotating a token resets the last service state to pending. The interface provides edit and rotate controls; integration tests cover invalid fields, authorization and revoked tokens.

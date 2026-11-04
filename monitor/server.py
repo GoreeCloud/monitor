@@ -153,6 +153,8 @@ def validate_monitor(spec: dict, allow_private: bool = ALLOW_PRIVATE) -> dict:
     if not 20 <= interval <= 86400 or not 1 <= timeout <= 30 or not 100 <= expected_code <= 599:
         raise ValueError("Invalid interval, timeout, or expected HTTP code")
     keyword = str(spec.get("keyword", ""))
+    if type(spec.get("public", False)) is not bool:
+        raise ValueError("Public flag must be a boolean")
     if len(keyword) > 200:
         raise ValueError("Keyword is too long")
     if kind == "http":
@@ -177,6 +179,8 @@ def validate_monitor(spec: dict, allow_private: bool = ALLOW_PRIVATE) -> dict:
         if not target or len(target) > 253 or any(x in target for x in ("/", ":", " ")):
             raise ValueError("DNS target must be a hostname")
     else:
+        if target:
+            raise ValueError("Push monitors do not accept a target")
         target = ""
     return {
         "name": name, "kind": kind, "target": target,
@@ -671,6 +675,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         SESSIONS.pop(sid.value, None)
                 return self.send(200, {"ok": True},
                                  cookie="gc_session=; Max-Age=0" + self.cookie_options())
+            if path.startswith("/api/monitors/") and path.endswith("/rotate-token"):
+                segments = path.split("/")
+                if len(segments) != 5 or not segments[3].isdigit():
+                    raise ValueError("Invalid monitor identifier")
+                mid = int(segments[3])
+                new_token = secrets.token_urlsafe(32)
+                with db() as con:
+                    cur = con.execute("""UPDATE monitors SET token_hash=?, state='pending',
+                        failures=0, latency_ms=NULL, last_check=NULL
+                        WHERE id=? AND kind='push'""",
+                        (hashlib.sha256(new_token.encode()).hexdigest(), mid))
+                if not cur.rowcount:
+                    return self.send(404, {"error": "Unknown push monitor"})
+                return self.send(200, {"id": mid, "push_token": new_token})
             body = self.read_json()
             if path == "/api/monitors":
                 parsed = validate_monitor(body)
@@ -736,11 +754,34 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             mid = int(path.rsplit("/", 1)[-1])
             body = self.read_json()
-            if type(body.get("active")) is not bool:
-                raise ValueError("Expected boolean active state")
+            if set(body) == {"active"}:
+                if type(body["active"]) is not bool:
+                    raise ValueError("Expected boolean active state")
+                with db() as con:
+                    cur = con.execute("UPDATE monitors SET active=? WHERE id=?", (int(body["active"]), mid))
+                return self.send(200 if cur.rowcount else 404, {"ok": bool(cur.rowcount)})
+            allowed = {"name", "target", "interval_seconds", "timeout_seconds",
+                       "expected_code", "keyword", "public"}
+            if not body or not set(body).issubset(allowed):
+                raise ValueError("Unknown or unsupported monitor settings")
             with db() as con:
-                cur = con.execute("UPDATE monitors SET active=? WHERE id=?", (int(body["active"]), mid))
-            return self.send(200 if cur.rowcount else 404, {"ok": bool(cur.rowcount)})
+                existing = con.execute("SELECT * FROM monitors WHERE id=?", (mid,)).fetchone()
+                if existing is None:
+                    return self.send(404, {"error": "Unknown monitor"})
+                current = dict(existing)
+                spec = {key: current[key] for key in ("name", "kind", "target",
+                        "interval_seconds", "timeout_seconds", "expected_code", "keyword")}
+                spec["public"] = bool(current["public"])
+                spec.update(body)
+                validated = validate_monitor(spec)
+                reset = any(validated[key] != current[key] for key in
+                            ("target", "expected_code", "keyword"))
+                changes = ", ".join(key + "=?" for key in validated)
+                if reset:
+                    changes += ", state='pending', failures=0, latency_ms=NULL, last_check=NULL"
+                con.execute("UPDATE monitors SET " + changes + " WHERE id=?",
+                            (*validated.values(), mid))
+            return self.send(200, {"ok": True, "reset": reset})
         except (ValueError, TypeError) as exc:
             return self.send(400, {"error": str(exc)})
 

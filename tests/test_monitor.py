@@ -117,6 +117,73 @@ class HttpIntegrationTests(unittest.TestCase):
             self.assertEqual(status, 503)
             self.assertFalse(json.loads(data)["ready"])
 
+    def test_monitor_edit_validated_without_changing_push_token(self):
+        cookie, csrf = self.login()
+        status, body, _ = self.call("POST", "/api/monitors",
+                                    {"name": "Backup", "kind": "push"}, cookie, csrf)
+        self.assertEqual(status, 201)
+        monitor = json.loads(body)
+        mid, token = monitor["id"], monitor["push_token"]
+        self.assertEqual(self.call("PATCH", "/api/monitors/%d" % mid,
+                                   {"name": "Daily backup", "interval_seconds": 120,
+                                    "public": True}, cookie, csrf)[0], 200)
+        listing = json.loads(self.call("GET", "/api/monitors", cookie=cookie)[1])["monitors"]
+        self.assertEqual(listing[0]["name"], "Daily backup")
+        self.assertEqual(listing[0]["interval_seconds"], 120)
+        self.assertTrue(listing[0]["public"])
+        self.assertNotIn("token_hash", listing[0])
+        self.assertEqual(self.call("POST", "/push/" + token, {"status": "up"})[0], 200)
+        for invalid in ({"kind": "tcp"}, {"active": True, "name": "bad"},
+                        {"public": "true"}, {"interval_seconds": 0},
+                        {"target": "127.0.0.1:80"}, {}):
+            self.assertEqual(self.call("PATCH", "/api/monitors/%d" % mid,
+                                       invalid, cookie, csrf)[0], 400)
+        self.assertEqual(json.loads(self.call("GET", "/api/monitors",
+                                              cookie=cookie)[1])["monitors"][0]["name"], "Daily backup")
+
+    def test_push_rotation_revokes_previous_token_and_resets_state(self):
+        cookie, csrf = self.login()
+        _, data, _ = self.call("POST", "/api/monitors",
+                               {"name": "Scheduled job", "kind": "push"}, cookie, csrf)
+        monitor = json.loads(data)
+        mid, previous = monitor["id"], monitor["push_token"]
+        path = "/api/monitors/%d/rotate-token" % mid
+        self.assertEqual(self.call("POST", path)[0], 401)
+        self.assertEqual(self.call("POST", path, cookie=cookie)[0], 403)
+        self.assertEqual(self.call("POST", "/push/" + previous,
+                                   {"status": "up"})[0], 200)
+        status, response, _ = self.call("POST", path, cookie=cookie, csrf=csrf)
+        self.assertEqual(status, 200)
+        token = json.loads(response)["push_token"]
+        self.assertNotEqual(previous, token)
+        self.assertEqual(self.call("POST", "/push/" + previous, {"status": "up"})[0], 404)
+        self.assertEqual(json.loads(self.call("GET", "/api/monitors", cookie=cookie)[1])
+                         ["monitors"][0]["state"], "pending")
+        self.assertEqual(self.call("POST", "/push/" + token, {"status": "up"})[0], 200)
+        self.assertEqual(self.call("POST", path.replace(str(mid), "999999"),
+                                   cookie=cookie, csrf=csrf)[0], 404)
+
+    def test_http_edit_resets_stale_health(self):
+        cookie, csrf = self.login()
+        with patch.object(server, "addresses", return_value=[(2, 1, 6, "",
+                           ("8.8.8.8", 80))]):
+            status, body, _ = self.call("POST", "/api/monitors",
+                                       {"name": "HTTP", "kind": "http",
+                                        "target": "http://example.test"}, cookie, csrf)
+            self.assertEqual(status, 201)
+            mid = json.loads(body)["id"]
+            server.save_heartbeat(mid, "up", 11.0, "OK")
+            status, body, _ = self.call("PATCH", "/api/monitors/%d" % mid,
+                                       {"expected_code": 204, "keyword": "ready"},
+                                       cookie, csrf)
+        self.assertEqual(status, 200)
+        self.assertTrue(json.loads(body)["reset"])
+        result = json.loads(self.call("GET", "/api/monitors", cookie=cookie)[1])["monitors"][0]
+        self.assertEqual(result["expected_code"], 204)
+        self.assertEqual(result["keyword"], "ready")
+        self.assertEqual(result["state"], "pending")
+        self.assertIsNone(result["latency_ms"])
+
     def test_authorization_and_csrf(self):
         self.assertEqual(self.call("GET", "/api/monitors")[0],401)
         self.assertEqual(self.call("POST", "/api/login", {"password":"wrong"})[0],401)

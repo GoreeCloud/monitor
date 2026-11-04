@@ -51,3 +51,7 @@ SQLite backups include monitor configurations, targets, operational timestamps, 
 ### Maintenance-state publication isolation
 
 Private active maintenance windows suppress configured operational notifications and appear in authenticated administrative status, but they must not silently mark public service rows as under maintenance. Public status labels reflect only explicitly published active maintenance windows. A regression test exercises both private and public views.
+
+## Push token lifecycle and validated mutations
+
+The admin API supports one-time push token rotation behind session authentication and per-session CSRF validation. The database stores only the SHA-256 digest of each new random token; previous tokens stop matching as soon as rotation succeeds. Administrator monitor edits use a field allowlist, full parameter validation, and atomic SQL updates. Rotating a token or changing a check target/expectation resets stale health state to pending. Operators must update their heartbeat sender manually after rotation; no secret is sent by email or written into application history.
