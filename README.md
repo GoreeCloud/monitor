@@ -96,7 +96,7 @@ Do not publish the token; rotate by recreating the monitor if exposed.
 - [Security and threat model](docs/SECURITY.md)
 - [Delivery roadmap and gaps](docs/ROADMAP.md)
 - [GoreeCloud UI](https://github.com/GoreeCloud/gc-ui)
-- [Governing account-specific project instructions](https://drive.google.com/drive/folders/1WQcWOzmqQAEf8IimePKzpGyH9jILCPeR) (private)
+- Governing operating instructions: owner-controlled private GoreeCloud Google Drive Markdown (not publicly linked)
 
 Run validation:
 
