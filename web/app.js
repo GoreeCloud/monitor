@@ -1,6 +1,6 @@
 "use strict";
 const $ = (sel) => document.querySelector(sel);
-const state = { csrf: "", monitors: [], summary: {}, history: [], view: "overview" };
+const state = { csrf: "", monitors: [], summary: {}, history: [], incidents: [], maintenance: [], view: "overview" };
 function el(tag, cls, text) {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
@@ -74,6 +74,91 @@ function drawActivity() {
     container.append(node);
   }
 }
+function drawRecords(view) {
+  const container = $("#monitor-list");
+  container.replaceChildren();
+  const isIncident = view === "incidents";
+  $(".monitors-panel .panel-heading h2").textContent = isIncident ? "Incident journal" : "Maintenance windows";
+  const form = el("form", "record-form");
+  const heading = el("h3", "", isIncident ? "Publish an incident" : "Schedule maintenance");
+  const title = el("input");
+  title.type = "text"; title.maxLength = 160; title.required = true;
+  title.placeholder = isIncident ? "Service disruption title" : "Maintenance title";
+  title.setAttribute("aria-label", "Title");
+  const description = el("input");
+  description.type = "text"; description.maxLength = 2000;
+  description.placeholder = "Add details (optional)";
+  description.setAttribute("aria-label", "Details");
+  form.append(heading,title,description);
+  let start, end, publish;
+  if (isIncident) {
+    const row = el("label","record-checkbox");
+    publish = el("input"); publish.type="checkbox";
+    row.append(publish,el("span","","Publish this announcement on the public status page"));
+    form.append(row);
+  } else {
+    const pair = el("div","field-pair");
+    start = el("input"); end = el("input");
+    start.type="datetime-local";end.type="datetime-local";
+    start.required=true;end.required=true;
+    start.setAttribute("aria-label","Maintenance starts");
+    end.setAttribute("aria-label","Maintenance ends");
+    pair.append(start,end);form.append(pair);
+  }
+  const btn=el("button","primary",isIncident?"Create incident →":"Schedule →");
+  btn.type="submit";form.append(btn);
+  form.onsubmit=async event=>{
+    event.preventDefault();
+    let body = {title:title.value.trim(),description:description.value.trim()};
+    if(isIncident) body.public=publish.checked;
+    else {
+      const a=new Date(start.value),b=new Date(end.value);
+      if(Number.isNaN(a.getTime())||Number.isNaN(b.getTime())||b<=a) {
+        message("Please select a valid maintenance window.");return;
+      }
+      body.starts_at=a.toISOString();body.ends_at=b.toISOString();
+    }
+    try {
+      await request("/api/"+(isIncident?"incidents":"maintenance"),{method:"POST",body:JSON.stringify(body)});
+      message(isIncident?"Incident recorded.":"Maintenance scheduled.");
+      await load();
+    }catch(err){message(err.message);}
+  };
+  container.append(form);
+  const records = isIncident?state.incidents:state.maintenance;
+  if(!records.length) {
+    container.append(el("div","record-empty",isIncident?"No incidents have been recorded.":"No maintenance windows scheduled."));
+    return;
+  }
+  for(const record of records){
+    const item=el("div","record-item");
+    const copy=el("div","record-copy");
+    copy.append(el("strong","",record.title),el("p","",record.description||"No additional details."));
+    copy.append(el("small","",isIncident?activityTime(record.created_at):activityTime(record.starts_at)+" — "+activityTime(record.ends_at)));
+    item.append(copy);
+    if(isIncident) {
+      item.append(statusChip(record.status));
+      if(record.status!=="resolved") {
+        const resolve=el("button","small-button","Resolve");
+        resolve.onclick=async()=>{
+          try{await request("/api/incidents/"+record.id,{method:"PATCH",body:JSON.stringify({status:"resolved"})});await load();}
+          catch(err){message(err.message);}
+        };
+        item.append(resolve);
+      }
+    } else {
+      const remove=el("button","small-button","Remove");
+      remove.onclick=async()=>{
+        if(!confirm("Remove this maintenance window?"))return;
+        try{await request("/api/maintenance/"+record.id,{method:"DELETE"});await load();}
+        catch(err){message(err.message);}
+      };
+      item.append(remove);
+    }
+    container.append(item);
+  }
+}
+
 function drawSummary() {
   $("#stat-total").textContent = state.summary.total ?? "—";
   $("#stat-up").textContent = state.summary.up ?? "—";
@@ -99,18 +184,23 @@ function setView(view) {
   $(".monitors-panel").hidden = view === "activity" || view === "incidents" || view === "maintenance";
   $(".activity-panel").hidden = view === "monitors" || view === "incidents" || view === "maintenance";
   $("#new-monitor").hidden = view === "incidents" || view === "maintenance";
+  $(".monitors-panel .panel-heading h2").textContent = "Service health";
   if (view === "incidents" || view === "maintenance") {
     $(".monitors-panel").hidden = false;
-    $("#monitor-list").replaceChildren();
-    $("#monitor-list").append(el("div","empty-state","View incident and maintenance records through the authenticated API. Management forms are under development."));
     $(".activity-panel").hidden = true;
+    drawRecords(view);
   } else { drawMonitors();drawActivity(); }
 }
 async function load() {
-  const [monitors,summary,history] = await Promise.all([request("/api/monitors"),request("/api/summary"),request("/api/history")]);
+  const [monitors,summary,history,incidents,maintenance] = await Promise.all([
+    request("/api/monitors"),request("/api/summary"),request("/api/history"),
+    request("/api/incidents"),request("/api/maintenance")
+  ]);
   state.monitors = monitors.monitors;
   state.summary = summary;
   state.history = history.history;
+  state.incidents = incidents.incidents;
+  state.maintenance = maintenance.maintenance;
   drawSummary();setView(state.view);
 }
 function reveal(which) {
@@ -121,13 +211,28 @@ async function showPublic() {
   reveal("#public-page");
   const list = $("#public-list");
   try {
-    const {monitors} = await request("/api/public");
+    const data = await request("/api/public");
+    const monitors = data.monitors;
     if (!monitors.length) return empty(list,"◇","Nothing published yet","No services have been explicitly published to this page.");
     list.replaceChildren();
     for (const m of monitors) {
       const row=el("div","monitor-item");
       row.append(el("div","service-icon","◈"),el("div","service-copy",m.name),statusChip(m.display_state||m.state));
       list.append(row);
+    }
+    for(const item of (data.maintenance||[])) {
+      const row=el("div","record-item");
+      const box=el("div","record-copy");
+      box.append(el("strong","","Scheduled maintenance · "+item.title),
+                 el("p","",item.description||"Planned service maintenance."),
+                 el("small","",activityTime(item.starts_at)+" — "+activityTime(item.ends_at)));
+      row.append(box);list.append(row);
+    }
+    for(const item of (data.incidents||[])) {
+      const row=el("div","record-item");
+      const box=el("div","record-copy");
+      box.append(el("strong","",item.title),el("p","",item.description),el("small","",activityTime(item.updated_at)));
+      row.append(box,statusChip(item.status));list.append(row);
     }
   } catch (err) { empty(list,"!","Status unavailable",err.message); }
 }

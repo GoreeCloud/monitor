@@ -15,7 +15,8 @@ GoreeCloud Monitor is a privacy-first, self-hosted uptime, service-health and in
 - Private authenticated administrator console with session cookie and anti-CSRF token.
 - Creation, pausing, resuming and removal of monitors; recent activity and summary cards.
 - Public status page with opt-in visibility (monitors default to private).
-- Manual incident and one-time maintenance records through authenticated JSON endpoints.
+- Manual incident creation/resolution and one-time maintenance records with dashboard controls.
+- Public incident RSS feed, opt-in SVG status badges, and protected Prometheus-format metrics.
 - Basic JSON monitoring endpoints and isolated container deployment example.
 - GitHub Actions Python and JavaScript checks.
 
@@ -61,8 +62,13 @@ Compose binds only to 127.0.0.1:3001 and requires GC_COOKIE_SECURE=1; access the
 | GET | /api/summary | Session | Monitor counts |
 | GET | /api/history | Session | Recent heartbeats |
 | GET, POST | /api/incidents | Session (POST + CSRF) | Record incidents |
+| PATCH | /api/incidents/{id} | Session + CSRF | Resolve/reopen an incident |
 | GET, POST | /api/maintenance | Session (POST + CSRF) | Record maintenance |
-| GET | /api/public | Public | Only opt-in monitors |
+| DELETE | /api/maintenance/{id} | Session + CSRF | Remove maintenance |
+| GET | /api/public | Public | Opt-in monitors, public incidents and upcoming maintenance |
+| GET | /status.rss | Public | RSS feed for published incidents |
+| GET | /badge/{id}.svg | Public if monitor opted in | SVG availability badge |
+| GET | /metrics | Bearer token, opt-in | Prometheus-format metrics |
 | POST | /push/{token} | Push token | Receive external heartbeat |
 
 API is experimental and not yet a stable cross-product contract.
@@ -97,3 +103,7 @@ Run validation:
 Original implementation authored for GoreeCloud. Uses Python, SQLite and browser platform APIs; no third-party application fork is bundled. The full Uptime Kuma-inspired feature list supplied by the owner is a specification benchmark, **not a claim that GoreeCloud has implemented Uptime Kuma**. Third-party products and provider names remain the property of their respective owners.
 
 **Status:** Development foundation · 2026-11-04 · No production readiness assertion.
+
+### Optional metrics
+
+Set GC_METRICS_TOKEN to a unique random secret of at least 24 characters. The protected /metrics endpoint then accepts Authorization: Bearer TOKEN. Do not expose the token to browsers, logs or public dashboards. Metrics contain monitor IDs, not private targets.

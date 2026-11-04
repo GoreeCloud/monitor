@@ -16,6 +16,7 @@ import sqlite3
 import ssl
 import threading
 import time
+from xml.sax.saxutils import escape as xml_escape
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -343,6 +344,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_text(self, status: int, body: str, mime: str):
+        payload = body.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Security-Policy", "default-src 'none'; sandbox")
+        self.end_headers()
+        self.wfile.write(payload)
+
     def cookie_options(self) -> str:
         return "; HttpOnly; SameSite=Strict; Path=/" + ("; Secure" if COOKIE_SECURE else "")
 
@@ -409,7 +421,59 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path in ("/", "/status", "/assets/app.js", "/assets/style.css"):
             return self.static(path)
         if path == "/api/public":
-            return self.send(200, {"monitors": monitor_list(public=True)})
+            with db() as con:
+                incidents = [dict(r) for r in con.execute(
+                    "SELECT id,title,description,status,created_at,updated_at FROM incidents WHERE public=1 ORDER BY id DESC LIMIT 25")]
+                maintenance = [dict(r) for r in con.execute(
+                    "SELECT title,description,starts_at,ends_at FROM maintenance WHERE ends_at>=? ORDER BY starts_at LIMIT 15", (utcnow(),))]
+            return self.send(200, {"monitors": monitor_list(public=True), "incidents": incidents,
+                                   "maintenance": maintenance})
+        if path == "/status.rss":
+            with db() as con:
+                rows = [dict(r) for r in con.execute(
+                    "SELECT title,description,updated_at FROM incidents WHERE public=1 ORDER BY id DESC LIMIT 25")]
+            items = "".join("<item><title>" + xml_escape(r["title"]) + "</title><description>" +
+                            xml_escape(r["description"]) + "</description><pubDate>" +
+                            xml_escape(r["updated_at"]) + "</pubDate></item>" for r in rows)
+            body = '<?xml version="1.0" encoding="UTF-8"?>' + (
+                '<rss version="2.0"><channel><title>GoreeCloud Monitor incidents</title>'
+                '<description>Public incident updates</description>' + items + '</channel></rss>')
+            return self.send_text(200, body, "application/rss+xml; charset=utf-8")
+        if path.startswith("/badge/") and path.endswith(".svg"):
+            try:
+                mid = int(path.split("/")[-1].removesuffix(".svg"))
+            except ValueError:
+                return self.send(404, {"error": "Not found"})
+            with db() as con:
+                m = con.execute("SELECT state,active FROM monitors WHERE id=? AND public=1", (mid,)).fetchone()
+            if m is None:
+                return self.send(404, {"error": "Not found"})
+            state = m["state"] if m["active"] else "paused"
+            color = {"up": "#168768", "down": "#bd465c", "paused": "#536179"}.get(state, "#536179")
+            svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="176" height="24">'
+                   '<rect width="176" height="24" rx="6" fill="#172337"/>'
+                   '<rect x="117" width="59" height="24" rx="6" fill="' + color + '"/>'
+                   '<text x="9" y="16" font-size="11" font-family="sans-serif" fill="#ffffff">GoreeCloud</text>'
+                   '<text x="144" y="16" text-anchor="middle" font-size="11" font-family="sans-serif" fill="#ffffff">' +
+                   xml_escape(state.upper()) + '</text></svg>')
+            return self.send_text(200, svg, "image/svg+xml; charset=utf-8")
+        if path == "/metrics":
+            key = os.environ.get("GC_METRICS_TOKEN", "")
+            provided = self.headers.get("Authorization", "")
+            if len(key) < 24 or not hmac.compare_digest(provided, "Bearer " + key):
+                return self.send(403, {"error": "Metrics unavailable or unauthorized"})
+            with db() as con:
+                rows = [dict(r) for r in con.execute("SELECT id,state,latency_ms FROM monitors")]
+            lines = ["# TYPE goreecloud_monitor_up gauge"]
+            for m in rows:
+                number = 1 if m["state"] == "up" else 0
+                lines.append('goreecloud_monitor_up{monitor_id="%s"} %s' % (m["id"], number))
+            lines.append("# TYPE goreecloud_monitor_response_ms gauge")
+            for m in rows:
+                if m["latency_ms"] is not None:
+                    lines.append('goreecloud_monitor_response_ms{monitor_id="%s"} %s' %
+                                 (m["id"], m["latency_ms"]))
+            return self.send_text(200, "\n".join(lines) + "\n", "text/plain; version=0.0.4; charset=utf-8")
         if path == "/api/me":
             if not self.protected():
                 return
@@ -534,6 +598,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if not self.protected(write=True):
             return
+        if path.startswith("/api/incidents/"):
+            try:
+                mid = int(path.rsplit("/", 1)[-1])
+                body = self.read_json()
+                if body.get("status") not in ("resolved", "investigating"):
+                    raise ValueError("Incident status must be resolved or investigating")
+                with db() as con:
+                    cur = con.execute("UPDATE incidents SET status=?, updated_at=? WHERE id=?",
+                                      (body["status"], utcnow(), mid))
+                return self.send(200 if cur.rowcount else 404, {"ok": bool(cur.rowcount)})
+            except (ValueError, TypeError) as exc:
+                return self.send(400, {"error": str(exc)})
         if not path.startswith("/api/monitors/"):
             return self.send(404, {"error": "Not found"})
         try:
@@ -551,6 +627,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if not self.protected(write=True):
             return
+        if path.startswith("/api/maintenance/"):
+            try:
+                mid = int(path.rsplit("/", 1)[-1])
+            except ValueError:
+                return self.send(400, {"error": "Invalid maintenance identifier"})
+            with db() as con:
+                cur = con.execute("DELETE FROM maintenance WHERE id=?", (mid,))
+            return self.send(200 if cur.rowcount else 404, {"ok": bool(cur.rowcount)})
         if not path.startswith("/api/monitors/"):
             return self.send(404, {"error": "Not found"})
         try:

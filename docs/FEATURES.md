@@ -24,14 +24,14 @@ GoreeCloud Monitor is a self-hosted, privacy-first service intelligence platform
 | 7 | Push and scheduled jobs | **Partial:** token-based POST, missed heartbeat check | Timing details, failure messages, token rotation |
 | 8 | Performance and analytics | **Partial:** recent heartbeat and response time | Uptime windows, trends, charts, reports and custom retention |
 | 9 | Alerts and notifications | **Planned** | Secure outbound webhook and SMTP first, then integrations |
-| 10 | Incident management | **Partial:** private create/list records | Incident resolve/edit, association, public publishing, automated incidents |
-| 11 | Public/private status | **Partial:** opt-in status page | Multiple branded pages, groups, RSS, incident display, custom domains |
-| 12 | Maintenance | **Partial:** one-time global maintenance records | Per-monitor scopes, recurring schedules, alert suppression |
+| 10 | Incident management | **Partial:** create/list/resolve and opt-in RSS | Incident resolve/edit, association, public publishing, automated incidents |
+| 11 | Public/private status | **Partial:** opt-in status page, incidents, maintenance, RSS | Multiple branded pages, groups, RSS, incident display, custom domains |
+| 12 | Maintenance | **Partial:** one-time global maintenance records, create/delete UI | Per-monitor scopes, recurring schedules, alert suppression |
 | 13 | Certificates/domains | **Partial:** HTTPS TLS validation | Expiration warnings, certificate chain, domain renewals |
 | 14 | Dashboard and UI | **Partial:** GC UI-inspired responsive console | Design-token package integration, charts, full management forms, visual QA |
-| 15 | Status badges | **Planned** | SVG service/uptime/ping/certificate badges |
+| 15 | Status badges | **Partial:** opt-in SVG status badge | Uptime/ping/certificate badges |
 | 16 | APIs/webhooks | **Partial:** authenticated JSON and push | Stable versioned API, webhooks, key management |
-| 17 | Prometheus/external observability | **Planned** | Protected /metrics endpoint, Grafana examples |
+| 17 | Prometheus/external observability | **Partial:** protected /metrics endpoint | Grafana examples, long-term telemetry |
 | 18 | Authentication/security | **Partial:** password session, rate limit, CSRF | Two-factor auth, password rotation, audit events |
 | 19 | Privacy/self-hosting | **Partial:** local storage, opt-in publishing | Detailed privacy policy, encrypted provider secrets |
 | 20 | Deployment/platform | **Partial:** Python service and container recipe | Native service installers, platform CI and signed releases |

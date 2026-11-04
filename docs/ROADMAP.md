@@ -26,7 +26,7 @@
 
 - Recurring, scoped maintenance schedules and incident lifecycles.
 - Multiple branded public status pages with incident timeline and RSS.
-- Prometheus metrics, versioned authenticated API, badge endpoints and integration guides.
+- Harden the initial Prometheus-format metrics, SVG status badge and RSS endpoints; add a versioned API and integration guides.
 - Monitor tags, grouping, advanced filtering and bulk editing.
 - Tested backup/restore and migration tooling.
 

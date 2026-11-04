@@ -36,6 +36,7 @@ Keep container service bound to 127.0.0.1 and publish through an HTTPS reverse p
 
 - No full Docker, network protocol or database-specific probe portfolio yet.
 - No notification delivery, escalation routing, certificate expiry alarms or domain expiry checks.
+- Public RSS, badge and opt-in metrics endpoints are present but require runtime and security validation.
 - No SSO, RBAC, multi-tenancy or TOTP yet.
 - No stable public administrative API.
 - No live deployment or host/platform verification is asserted.
