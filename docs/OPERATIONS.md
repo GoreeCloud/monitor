@@ -36,7 +36,7 @@ Ensure destination directory exists, is access-controlled and is on storage with
     GC_DATA_DIR=/a/private/path/monitor-data \
       python3 -m monitor.backup /a/private/backups/monitor-snapshot.sqlite3
 
-The helper uses SQLite's consistent backup API, verifies snapshot integrity, creates a mode-0600 file and reports a SHA-256 checksum. It does not overwrite an existing destination. Record the checksum separately in an authorized private location; do not publish snapshot data, monitor targets or secrets.
+The helper uses SQLite's consistent backup API, verifies snapshot integrity, creates a mode-0600 file and reports a SHA-256 checksum. It does not overwrite an existing destination. A scratch-directory restore regression test and symlink non-overwrite test are included. Record the checksum separately in an authorized private location; do not publish snapshot data, monitor targets or secrets.
 
 ## Restore procedure — controlled and offline only
 
