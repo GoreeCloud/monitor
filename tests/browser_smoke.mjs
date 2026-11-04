@@ -89,7 +89,7 @@ class Browser {
     });
     if (result.exceptionDetails) {
       throw new Error("Browser JS exception: " +
-        (result.exceptionDetails.text || JSON.stringify(result.exceptionDetails)));
+        (result.exceptionDetails.exception?.description || result.exceptionDetails.text || "Unknown page script error"));
     }
     return result.result?.value;
   }
@@ -177,7 +177,7 @@ async function main() {
       'document.querySelector("#workspace")?.hidden === false && document.querySelector("#stat-total")?.textContent !== "—"'),
       "authenticated workspace");
     assert.equal(await browser.evaluate(
-      'document.querySelectorAll(".nav-item[aria-current=\"page\"]").length'), 1);
+      'document.querySelectorAll("[aria-current=page]").length'), 1);
     await checkViewport(browser, "desktop", 1280, 800, false);
 
     // Create a private push monitor using the actual application form.
