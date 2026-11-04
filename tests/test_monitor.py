@@ -172,7 +172,7 @@ class HttpIntegrationTests(unittest.TestCase):
         self.assertEqual(status, 201)
         public = json.loads(self.call("GET", "/api/public")[1])
         self.assertEqual(public["maintenance"], [])
-        published = {**private, "title": "Public maintenance", "public": True}
+        published = {**private, "title": "Public maintenance", "description": "Approved public details", "public": True}
         self.assertEqual(self.call("POST", "/api/maintenance", published, cookie, csrf)[0], 201)
         public = json.loads(self.call("GET", "/api/public")[1])
         self.assertEqual([item["title"] for item in public["maintenance"]], ["Public maintenance"])
