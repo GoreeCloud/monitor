@@ -245,6 +245,23 @@ async function main() {
       "keyboard navigation and aria-current");
 
     await checkViewport(browser, "mobile", 390, 844, true);
+    const navLayout = await browser.evaluate(`(() => {
+      const nav = document.querySelector("#nav");
+      const rect = nav.getBoundingClientRect();
+      return {
+        fits: nav.scrollWidth <= nav.clientWidth + 2,
+        visible: [...nav.querySelectorAll("button[data-view]")].every(button => {
+          const box = button.getBoundingClientRect();
+          return box.width > 0 && box.height > 0 &&
+            box.left >= rect.left - 2 && box.right <= rect.right + 2;
+        }),
+        rows: new Set([...nav.querySelectorAll("button[data-view]")].map(
+          button => Math.round(button.getBoundingClientRect().top))).size,
+      };
+    })()`);
+    assert.ok(navLayout.fits && navLayout.visible && navLayout.rows === 2,
+      "mobile navigation must expose all items in two rows without scrolling: " +
+      JSON.stringify(navLayout));
     const mobileCheck = await browser.evaluate(`({
       searchVisible: document.querySelector("#monitor-search").getBoundingClientRect().width > 0,
       statusVisible: document.querySelector("#monitor-status-filter").getBoundingClientRect().width > 0,
