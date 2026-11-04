@@ -36,7 +36,7 @@ Requirements: **Python 3.12+**. The standard-library service requires no Python 
 
 The example above uses an environment variable for convenience. For persistent deployment, use GC_ADMIN_PASSWORD_FILE with a permission-restricted secret file. Never put actual credentials in git, shell history or public documentation.
 
-To monitor localhost or private subnets, set GC_ALLOW_PRIVATE_TARGETS=1 explicitly. Public-target mode rejects private, loopback, link-local and reserved IPs. HTTP checks are subject to a documented DNS-rebinding hardening gap; do not expose this early version directly to hostile networks.
+To monitor private routable subnets, set GC_ALLOW_PRIVATE_TARGETS=1 explicitly. Loopback, link-local, multicast and reserved addresses remain disallowed. Public-target mode rejects private, loopback, link-local and reserved IPs. HTTP checks are subject to a documented DNS-rebinding hardening gap; do not expose this early version directly to hostile networks.
 
 ## Container deployment
 
@@ -86,6 +86,7 @@ Do not publish the token; rotate by recreating the monitor if exposed.
 
 ## Engineering and docs
 
+- [Full 30-domain product requirements](docs/PRODUCT_SPEC.md)
 - [Capabilities and acceptance scope](docs/FEATURES.md)
 - [Architecture and operations](docs/ARCHITECTURE.md)
 - [Security and threat model](docs/SECURITY.md)

@@ -213,7 +213,8 @@ async function showPublic() {
   try {
     const data = await request("/api/public");
     const monitors = data.monitors;
-    if (!monitors.length) return empty(list,"◇","Nothing published yet","No services have been explicitly published to this page.");
+    if (!monitors.length && !(data.incidents||[]).length && !(data.maintenance||[]).length)
+      return empty(list,"◇","Nothing published yet","No services or announcements have been explicitly published to this page.");
     list.replaceChildren();
     for (const m of monitors) {
       const row=el("div","monitor-item");
