@@ -1,6 +1,6 @@
 "use strict";
 const $ = (sel) => document.querySelector(sel);
-const state = { csrf: "", monitors: [], summary: {}, stats: {}, history: [], incidents: [], maintenance: [], view: "overview" };
+const state = { csrf: "", monitors: [], summary: {}, stats: {}, history: [], incidents: [], maintenance: [], view: "overview", filterText: "", filterStatus: "all" };
 function el(tag, cls, text) {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
@@ -33,12 +33,23 @@ function activityTime(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "Unknown time" : date.toLocaleString();
 }
+function selectMonitors(monitors, term = "", status = "all", sort = false) {
+  const query = String(term).trim().toLocaleLowerCase();
+  const selected = monitors.filter(item => {
+    const displayed = item.active === false ? "paused" : (item.display_state || item.state || "pending");
+    if (status !== "all" && status !== displayed) return false;
+    return [item.name, item.target, item.kind].filter(Boolean)
+      .join(" ").toLocaleLowerCase().includes(query);
+  });
+  return sort ? selected.sort((a, b) => a.name.localeCompare(b.name)) : selected;
+}
 function drawMonitors() {
   const container = $("#monitor-list");
   container.replaceChildren();
-  let monitors = state.monitors;
-  if (state.view === "monitors") monitors = [...monitors].sort((a,b)=>a.name.localeCompare(b.name));
-  if (!monitors.length) return empty(container, "◈", "Your workspace is ready", "Add your first service to start collecting availability and response-time data.");
+  const monitors = selectMonitors(state.monitors, state.filterText, state.filterStatus, state.view === "monitors");
+  $("#monitor-result-count").textContent = monitors.length + " of " + state.monitors.length + " services";
+  if (!state.monitors.length) return empty(container, "◈", "Your workspace is ready", "Add your first service to start collecting availability and response-time data.");
+  if (!monitors.length) return empty(container, "⌕", "No matching services", "Try a different search or choose another health status.");
   for (const m of monitors) {
     const row = el("div", "monitor-item");
     const icon = el("div", "service-icon", {http:"↗",tcp:"⇄",dns:"◎",tls:"♧",push:"↓"}[m.kind] || "◈");
@@ -218,6 +229,14 @@ const labels = {
   incidents: ["Incidents", "Incident awareness", "Track investigated service disruptions and share updates."],
   maintenance: ["Maintenance", "Planned work", "Keep maintenance windows distinct from unexpected outages."]
 };
+function syncActiveNavigation(items, view) {
+  for (const item of items) {
+    const isCurrent = item.dataset.view === view;
+    item.classList.toggle("selected", isCurrent);
+    if (isCurrent) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
+  }
+}
 function setView(view) {
   if (!labels[view]) return;
   state.view = view;
@@ -225,11 +244,13 @@ function setView(view) {
   $("#view-label").textContent = label;
   $("#page-title").replaceChildren(document.createTextNode(title),el("span","title-stop","."));
   $("#page-description").textContent = description;
-  document.querySelectorAll(".nav-item[data-view]").forEach(x=>x.classList.toggle("selected",x.dataset.view===view));
+  syncActiveNavigation(document.querySelectorAll(".nav-item[data-view]"), view);
   $("#stats").hidden = !["overview","monitors"].includes(view);
   $(".monitors-panel").hidden = view === "activity" || view === "incidents" || view === "maintenance";
   $(".activity-panel").hidden = view === "monitors" || view === "incidents" || view === "maintenance";
   $("#new-monitor").hidden = view === "incidents" || view === "maintenance";
+  $("#monitor-tools").hidden = view === "incidents" || view === "maintenance";
+  $("#monitor-result-count").hidden = view === "incidents" || view === "maintenance";
   $(".monitors-panel .panel-heading h2").textContent = "Service health";
   if (view === "incidents" || view === "maintenance") {
     $(".monitors-panel").hidden = false;
@@ -355,6 +376,14 @@ function setupEvents() {
     state.csrf="";reveal("#login");
   };
   $("#refresh").onclick=async()=>{try{await load();message("");}catch(err){message(err.message);}};
+  $("#monitor-search").oninput = value => {
+    state.filterText = value.target.value;
+    if (state.view === "overview" || state.view === "monitors") drawMonitors();
+  };
+  $("#monitor-status-filter").onchange = value => {
+    state.filterStatus = value.target.value;
+    if (state.view === "overview" || state.view === "monitors") drawMonitors();
+  };
   document.querySelectorAll("[data-view]").forEach(button=>button.onclick=()=>setView(button.dataset.view));
   $("#new-monitor").onclick=()=>openMonitorDialog();
   $("#cancel-monitor").onclick=()=>$("#create-dialog").close();

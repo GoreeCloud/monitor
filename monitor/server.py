@@ -31,6 +31,7 @@ PORT = int(os.environ.get("GC_PORT", "3001"))
 ALLOW_PRIVATE = os.environ.get("GC_ALLOW_PRIVATE_TARGETS", "0") == "1"
 COOKIE_SECURE = os.environ.get("GC_COOKIE_SECURE", "0") == "1"
 SESSION_LIFETIME = 8 * 3600
+MAX_SESSIONS = 128  # Bound process memory in the single-operator prototype.
 SESSIONS: dict[str, tuple[float, str]] = {}
 SESSIONS_LOCK = threading.Lock()
 LOGIN_ATTEMPTS: dict[str, list[float]] = {}
@@ -43,6 +44,30 @@ STOP = threading.Event()
 
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def create_session() -> tuple[str, str]:
+    """Generate an operator session while pruning expired and oldest sessions.
+
+    All table access is serialized. Limit the single-process session table
+    even if an operator repeatedly logs in without logging out.
+    """
+    now = time.time()
+    session_id, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+    with SESSIONS_LOCK:
+        expired = [key for key, (expiry, _csrf) in SESSIONS.items()
+                   if expiry <= now]
+        for key in expired:
+            SESSIONS.pop(key, None)
+        if len(SESSIONS) >= MAX_SESSIONS:
+            excess = len(SESSIONS) - MAX_SESSIONS + 1
+            # Remove earliest-expiring sessions. Never evict based on
+            # untrusted incoming cookie values.
+            oldest = sorted(SESSIONS, key=lambda key: SESSIONS[key][0])
+            for key in oldest[:excess]:
+                SESSIONS.pop(key, None)
+        SESSIONS[session_id] = (now + SESSION_LIFETIME, csrf)
+    return session_id, csrf
 
 
 def password() -> str:
@@ -126,6 +151,9 @@ def initialize():
 
 def valid_ip(value: str, allow_private: bool = ALLOW_PRIVATE) -> bool:
     ip = ipaddress.ip_address(value.split("%", 1)[0])
+    # Treat IPv4-mapped IPv6 according to its embedded IPv4 policy.
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
     if ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_unspecified or ip.is_reserved:
         return False
     # Metadata endpoints must remain inaccessible even with private probes.
@@ -176,7 +204,7 @@ def validate_monitor(spec: dict, allow_private: bool = ALLOW_PRIVATE) -> dict:
         if parsed.username or parsed.password or parsed.fragment:
             raise ValueError("Credentials and fragments are not permitted in monitor URLs")
         try:
-            port = parsed.port or (443 if parsed.scheme == "https" else 80)
+            port = parsed.port if parsed.port is not None else (443 if parsed.scheme == "https" else 80)
         except ValueError as exc:
             raise ValueError("Invalid URL port") from exc
         if port not in range(1, 65536):
@@ -206,7 +234,9 @@ def validate_monitor(spec: dict, allow_private: bool = ALLOW_PRIVATE) -> dict:
 def pinned_http_probe(target: str, timeout: int, expected_code: int, keyword: str) -> None:
     """Connect to validated IP only; TLS certificate verifies original hostname."""
     parts = urlsplit(target)
-    port = parts.port or (443 if parts.scheme == "https" else 80)
+    port = parts.port if parts.port is not None else (443 if parts.scheme == "https" else 80)
+    if port not in range(1, 65536):
+        raise ValueError("Invalid URL port")
     infos = addresses(parts.hostname, port)
     family, _kind, _proto, _canonical, sockaddr = infos[0]
     connection = http.client.HTTPConnection(parts.hostname, port, timeout=timeout)
@@ -554,9 +584,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return None
         with SESSIONS_LOCK:
             session = SESSIONS.get(sid.value)
-        if session and session[0] > time.time():
+            if session is not None and session[0] <= time.time():
+                SESSIONS.pop(sid.value, None)
+                return None
             return session
-        return None
 
     def protected(self, write=False) -> bool:
         session = self.session()
@@ -702,9 +733,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 candidate = str(self.read_json().get("password", ""))
                 if not hmac.compare_digest(candidate, self.server.admin_password):
                     return self.send(401, {"error": "Invalid credentials"})
-                sid, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
-                with SESSIONS_LOCK:
-                    SESSIONS[sid] = (time.time() + SESSION_LIFETIME, csrf)
+                sid, csrf = create_session()
                 with LOGIN_LOCK:
                     LOGIN_ATTEMPTS.pop(ip, None)
                 return self.send(200, {"authenticated": True, "csrf": csrf},

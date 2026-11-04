@@ -32,14 +32,14 @@
       <div class="brand sidebar-brand"><span class="brand-mark" aria-hidden="true"><span></span></span><span>GoreeCloud<br><strong>Monitor</strong></span></div>
       <span class="section-caption">WORKSPACE</span>
       <nav id="nav">
-        <button class="nav-item selected" data-view="overview"><span class="nav-icon">◈</span> Overview</button>
-        <button class="nav-item" data-view="monitors"><span class="nav-icon">▦</span> All monitors</button>
-        <button class="nav-item" data-view="activity"><span class="nav-icon">◷</span> Activity</button>
-        <button class="nav-item" data-view="incidents"><span class="nav-icon">◇</span> Incidents</button>
-        <button class="nav-item" data-view="maintenance"><span class="nav-icon">◫</span> Maintenance</button>
+        <button class="nav-item selected" data-view="overview"><span class="nav-icon" aria-hidden="true">◈</span> Overview</button>
+        <button class="nav-item" data-view="monitors"><span class="nav-icon" aria-hidden="true">▦</span> All monitors</button>
+        <button class="nav-item" data-view="activity"><span class="nav-icon" aria-hidden="true">◷</span> Activity</button>
+        <button class="nav-item" data-view="incidents"><span class="nav-icon" aria-hidden="true">◇</span> Incidents</button>
+        <button class="nav-item" data-view="maintenance"><span class="nav-icon" aria-hidden="true">◫</span> Maintenance</button>
       </nav>
       <span class="section-caption channel-caption">COMMUNICATION</span>
-      <a class="nav-item nav-link" href="/status" target="_blank" rel="noopener"><span class="nav-icon">↗</span> Public status page</a>
+      <a class="nav-item nav-link" href="/status" target="_blank" rel="noopener"><span class="nav-icon" aria-hidden="true">↗</span> Public status page</a>
       <div class="sidebar-bottom">
         <div class="instance-card">
           <div class="instance-icon">✦</div>
@@ -68,6 +68,14 @@
         <div class="main-grid">
           <section class="panel monitors-panel">
             <div class="panel-heading"><div><div class="eyebrow small">LIVE PULSE</div><h2>Service health</h2></div><span class="outline-chip">Auto-refresh · 15s</span></div>
+            <div id="monitor-tools" class="monitor-tools">
+              <label class="monitor-field" for="monitor-search"><span>Search services</span><input type="search" id="monitor-search" placeholder="Name, endpoint, or type" autocomplete="off"></label>
+              <label class="monitor-field monitor-status-field" for="monitor-status-filter"><span>Health status</span><select id="monitor-status-filter">
+                <option value="all">All statuses</option><option value="up">Operational</option><option value="down">Needs attention</option>
+                <option value="pending">Pending</option><option value="paused">Paused</option><option value="maintenance">Maintenance</option>
+              </select></label>
+            </div>
+            <p id="monitor-result-count" class="monitor-result-count" role="status" aria-live="polite"></p>
             <div id="monitor-list" class="monitor-list"></div>
           </section>
           <section class="panel activity-panel">

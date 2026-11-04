@@ -41,3 +41,7 @@ This is a verified source-token integration, not a complete GC UI component migr
 3. Update pinned source, source SHA, license and this record together.
 4. Run tests, review both appearances in browser on desktop/mobile and validate fallback preferences.
 5. Preserve a rollback point and do not modify the canonical design system from this consumer.
+
+## Service discovery controls
+
+The Monitor dashboard provides a keyboard-operable text search over service name, endpoint and check type, and a dropdown filter for displayed operational states. State filtering uses the *displayed* state (including maintenance and paused) instead of an unrelated raw heartbeat. The count is a polite live region and distinguishes a genuinely empty monitoring inventory from filters that match no services. Search and status preferences are held only in browser runtime memory; no endpoint details are sent to a third-party service.
