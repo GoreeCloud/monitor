@@ -1,6 +1,6 @@
 /** Real browser acceptance for GoreeCloud Monitor's development UI.
  * Only CI-owned loopback services, a disposable SQLite DB and fixture values.
- * Requires Node 24 and an existing Chrome/Chromium executable; no npm packages.
+ * Requires Node.js 22+ and an existing Chrome/Chromium executable; no npm packages.
  */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
