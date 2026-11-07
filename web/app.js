@@ -254,41 +254,93 @@ function reveal(which) {
   ["#login","#workspace","#public-page"].forEach(x=>$(x).hidden = true);
   $(which).hidden = false;
 }
-async function showPublic() {
+let publicLoadVersion=0;
+let publicFetchController=null;
+async function showPublic({restoreFocus=false}={}) {
   reveal("#public-page");
-  const list = $("#public-list");
+  const version=++publicLoadVersion;
+  publicFetchController?.abort("superseded");
+  const controller=new AbortController();
+  publicFetchController=controller;
+  const list=$("#public-list"),skeleton=$("#public-skeleton");
+  const recovery=$("#public-recovery"),region=$("#public-region"),status=$("#public-load-status");
+  list.replaceChildren();
+  list.hidden=true;
+  recovery.hidden=true;
+  skeleton.hidden=true;
+  region.setAttribute("aria-busy","true");
+  status.hidden=false;
+  status.textContent="Loading published service status…";
+  // Delayed geometry avoids a skeleton flash for immediately available data.
+  const skeletonTimer=setTimeout(()=>{
+    if(version===publicLoadVersion)skeleton.hidden=false;
+  },120);
+  const deadline=setTimeout(()=>controller.abort("timeout"),12000);
+  function settle() {
+    clearTimeout(skeletonTimer);
+    skeleton.hidden=true;
+    region.setAttribute("aria-busy","false");
+  }
   try {
-    const data = await request("/api/public");
-    const monitors = data.monitors;
-    if (!monitors.length && !(data.incidents||[]).length && !(data.maintenance||[]).length)
-      return empty(list,"◇","Nothing published yet","No services or announcements have been explicitly published to this page.");
-    list.replaceChildren();
-    for (const m of monitors) {
-      const row=el("div","monitor-item");
-      row.append(el("div","service-icon","◈"),el("div","service-copy",m.name),statusChip(m.display_state||m.state));
-      const rate = data.stats?.[String(m.id)]?.pass_rate;
-      if (rate != null) {
-        const chip = el("span","check-rate","24H " + rate.toFixed(1) + "%");
-        chip.title = "Successful recorded checks in the past 24 hours, not time-weighted uptime";
-        row.append(chip);
+    if(typeof navigator!=="undefined"&&navigator.onLine===false)throw new Error("offline");
+    const data=await request("/api/public",{signal:controller.signal});
+    if(version!==publicLoadVersion)return;
+    if(!Array.isArray(data.monitors)||!Array.isArray(data.incidents)||
+       !Array.isArray(data.maintenance))throw new Error("Invalid public status response");
+    const monitors=data.monitors;
+    if(!monitors.length&&!data.incidents.length&&!data.maintenance.length) {
+      empty(list,"◇","Nothing published yet","No services or announcements have been explicitly published to this page.");
+    } else {
+      for(const m of monitors) {
+        const row=el("div","monitor-item");
+        row.append(el("div","service-icon","◈"),el("div","service-copy",m.name),statusChip(m.display_state||m.state));
+        const rate=data.stats?.[String(m.id)]?.pass_rate;
+        if(rate!=null) {
+          const chip=el("span","check-rate","24H "+rate.toFixed(1)+"%");
+          chip.title="Successful recorded checks in the past 24 hours, not time-weighted uptime";
+          row.append(chip);
+        }
+        list.append(row);
       }
-      list.append(row);
+      for(const item of data.maintenance) {
+        const row=el("div","record-item"),box=el("div","record-copy");
+        box.append(el("strong","","Scheduled maintenance · "+item.title),
+                   el("p","",item.description||"Planned service maintenance."),
+                   el("small","",activityTime(item.starts_at)+" — "+activityTime(item.ends_at)));
+        row.append(box);list.append(row);
+      }
+      for(const item of data.incidents) {
+        const row=el("div","record-item"),box=el("div","record-copy");
+        box.append(el("strong","",item.title),el("p","",item.description),
+                   el("small","",activityTime(item.updated_at)));
+        row.append(box,statusChip(item.status));list.append(row);
+      }
     }
-    for(const item of (data.maintenance||[])) {
-      const row=el("div","record-item");
-      const box=el("div","record-copy");
-      box.append(el("strong","","Scheduled maintenance · "+item.title),
-                 el("p","",item.description||"Planned service maintenance."),
-                 el("small","",activityTime(item.starts_at)+" — "+activityTime(item.ends_at)));
-      row.append(box);list.append(row);
-    }
-    for(const item of (data.incidents||[])) {
-      const row=el("div","record-item");
-      const box=el("div","record-copy");
-      box.append(el("strong","",item.title),el("p","",item.description),el("small","",activityTime(item.updated_at)));
-      row.append(box,statusChip(item.status));list.append(row);
-    }
-  } catch (err) { empty(list,"!","Status unavailable",err.message); }
+    settle();
+    list.hidden=false;
+    status.textContent=monitors.length+data.incidents.length+data.maintenance.length?
+      "Published service status loaded.":"No published services or announcements.";
+    if(restoreFocus)$("#public-status-heading").focus();
+  } catch(err) {
+    if(version!==publicLoadVersion)return;
+    settle();
+    const offline=typeof navigator!=="undefined"&&navigator.onLine===false;
+    const timedOut=controller.signal.aborted&&controller.signal.reason==="timeout";
+    $("#public-recovery-title").textContent=offline?"You're offline":
+      timedOut?"Status request timed out":"Status unavailable";
+    $("#public-recovery-description").textContent=offline?
+      "Reconnect to see published service status.":timedOut?
+      "The request did not complete in time. Try again.":
+      "Published service status could not be loaded. Try again.";
+    recovery.hidden=false;
+    status.textContent=offline?"Offline: published status unavailable.":
+      timedOut?"Published status loading timed out.":"Published status unavailable.";
+    if(restoreFocus)$("#public-retry").focus();
+  } finally {
+    clearTimeout(skeletonTimer);
+    clearTimeout(deadline);
+    if(publicFetchController===controller)publicFetchController=null;
+  }
 }
 function openMonitorDialog(m = null) {
   const form = $("#monitor-form");
@@ -355,6 +407,7 @@ function setupEvents() {
     state.csrf="";reveal("#login");
   };
   $("#refresh").onclick=async()=>{try{await load();message("");}catch(err){message(err.message);}};
+  $("#public-retry").onclick=()=>showPublic({restoreFocus:true});
   document.querySelectorAll("[data-view]").forEach(button=>button.onclick=()=>setView(button.dataset.view));
   $("#new-monitor").onclick=()=>openMonitorDialog();
   $("#cancel-monitor").onclick=()=>$("#create-dialog").close();
