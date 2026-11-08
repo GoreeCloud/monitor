@@ -81,7 +81,18 @@
   </div>
   <div id="public-page" class="public-page" hidden>
     <header class="public-header"><div class="brand"><span class="brand-mark" aria-hidden="true"><span></span></span>GoreeCloud <strong>Monitor</strong></div><div class="public-actions"><span class="outline-chip">Public status</span><button id="public-theme-toggle" class="icon-button" aria-label="Switch to light appearance" title="Switch appearance">☀</button></div></header>
-    <main class="public-content"><div class="eyebrow">TRANSPARENT BY DESIGN</div><h1>Service status<span class="title-stop">.</span></h1><p>Live availability for services intentionally shared by their administrator.</p><section class="panel public-panel"><div id="public-list"></div></section><div class="bottom-caption">Powered by GoreeCloud Monitor</div></main>
+    <main class="public-content"><div class="eyebrow">TRANSPARENT BY DESIGN</div><h1 id="public-status-heading" tabindex="-1">Service status<span class="title-stop">.</span></h1><p>Live availability for services intentionally shared by their administrator.</p><section class="panel public-panel">
+        <p id="public-load-status" class="public-load-status" role="status" aria-live="polite" aria-atomic="true" hidden></p>
+        <div id="public-region" role="region" aria-label="Published service status" aria-busy="false">
+          <div id="public-skeleton" class="public-skeleton" aria-hidden="true" hidden><div class="public-skeleton-row"><span class="public-skeleton-icon"></span><span class="public-skeleton-title"></span><span class="public-skeleton-pill"></span></div><div class="public-skeleton-row"><span class="public-skeleton-icon"></span><span class="public-skeleton-title"></span><span class="public-skeleton-pill"></span></div><div class="public-skeleton-row"><span class="public-skeleton-icon"></span><span class="public-skeleton-title"></span><span class="public-skeleton-pill"></span></div></div>
+          <div id="public-list" hidden></div>
+          <div id="public-recovery" class="public-recovery" hidden>
+            <h2 id="public-recovery-title">Status unavailable</h2>
+            <p id="public-recovery-description">The published status could not be loaded.</p>
+            <button id="public-retry" type="button" class="primary">Retry status loading</button>
+          </div>
+        </div>
+      </section><div class="bottom-caption">Powered by GoreeCloud Monitor</div></main>
   </div>
   <dialog id="create-dialog" aria-labelledby="create-heading">
     <form method="dialog" id="monitor-form" class="modal-form">

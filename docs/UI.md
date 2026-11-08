@@ -30,6 +30,12 @@ Tokens supply Canvas, Surface, Lens, typography, accent, semantic colors, spacin
 - The upstream token CSS defines reduced motion, reduced transparency and elevated contrast behavior.
 - The existing Content Security Policy allows only self-hosted scripts and styles.
 
+## Principle 71 — public status loading (source-level preview, November 7, 2026)
+
+The opt-in public `/status` view has a local experimental implementation of canonical GoreeCloud UI Principle 71: a short-delay, geometry-matched static service-row skeleton, semantic loading/busy feedback outside the busy content region, and real published/empty/offline/error/12-second timeout and retry states. Placeholders never imply private monitor records or invented uptime. The implementation respects light/dark tokens, forced-colors and reduced-motion without loading animation. An eight-test isolated Node DOM harness now exercises fast/delayed loading, error/offline/timeout recovery and stale-request suppression; CI runs it with existing Python validation.
+
+**Boundaries:** Only the public opt-in status view is affected. The authenticated workspace, private monitor dashboard, native UI and deployed installations are not certified as Principle 71 compliant. Browser-engine/manual screen-reader, responsive/zoom, real network conditions and production acceptance remain open. No released C36 component or live service deployment is claimed.
+
 ## Acceptance gaps
 
 This is a verified source-token integration, not a complete GC UI component migration. Full component consistency, color-contrast checks, keyboard and screen-reader behavior, mobile screenshots, cross-browser visual review and founder visual acceptance remain outstanding. Unit and syntax tests alone cannot establish UI acceptance.
