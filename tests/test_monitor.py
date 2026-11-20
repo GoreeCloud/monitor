@@ -4,12 +4,13 @@ import socket
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "service"))
-from monitor import MonitorService, handler_factory, parse_monitor, probe
+from monitor import MonitorService, connect, handler_factory, parse_monitor, probe
 
 
 class LocalTarget(BaseHTTPRequestHandler):
@@ -74,6 +75,23 @@ class MonitorTests(unittest.TestCase):
             self.assertEqual(len(self.service.history(mid)), 2)
         finally:
             httpd.server_close()
+
+    def test_incident_transitions_are_deduplicated_and_resolved(self):
+        mid = self.service.create({"name": "Webhook", "target": "https://example.org", "public": True})
+        with patch("monitor.probe", side_effect=[
+            (False, 10, "HTTP 500"),
+            (False, 12, "HTTP 500"),
+            (True, 11, "HTTP 200"),
+        ]):
+            self.assertEqual(self.service.check(mid)["state"], "down")
+            self.assertEqual(self.service.check(mid)["state"], "down")
+            self.assertEqual(len(self.service.status()["incidents"]), 1)
+            self.assertEqual(self.service.check(mid)["state"], "up")
+        self.assertEqual(self.service.status()["incidents"], [])
+        with connect(self.service.path) as db:
+            rows = list(db.execute("SELECT started_at,resolved_at FROM incidents WHERE monitor_id=?", (mid,)))
+        self.assertEqual(len(rows), 1)
+        self.assertIsNotNone(rows[0]["resolved_at"])
 
     def test_private_probe_blocked_without_opt_in(self):
         m = parse_monitor({"name": "loopback", "target": "tcp://127.0.0.1:1234"})
