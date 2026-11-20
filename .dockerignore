@@ -1,6 +1,9 @@
 .git
 .github
-apps/
+apps/native/
+apps/web/node_modules/
+apps/web/dist/
+apps/web/.vite/
 tests/
 docs/
 data/
