@@ -9,8 +9,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    ports:
-      - "127.0.0.1:8765:8765"
+    expose:
+      - "8765"
     environment:
       MONITOR_API_TOKEN: ${MONITOR_API_TOKEN:?Set_MONITOR_API_TOKEN_in_environment}
       MONITOR_ALLOW_PRIVATE_TARGETS: "0"
@@ -18,5 +18,32 @@ services:
       - monitor-data:/data
     tmpfs:
       - /tmp:size=16m
+    networks:
+      - monitor-net
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    depends_on:
+      monitor:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ports:
+      - "127.0.0.1:8088:8080"
+    tmpfs:
+      - /tmp:size=16m
+    networks:
+      - monitor-net
+
 volumes:
   monitor-data:
+
+networks:
+  monitor-net:
+    driver: bridge
