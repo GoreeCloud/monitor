@@ -1,0 +1,35 @@
+# Credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Python, local persistent data
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+data/
+*.db
+*.db-wal
+*.db-shm
+# Web
+node_modules/
+apps/web/dist/
+apps/web/.vite/
+apps/web/*.tsbuildinfo
+# Flutter/Android/Linux generated build outputs
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+.gradle/
+*.iml
+*.apk
+*.aab
+.idea/
+.vscode/
+.DS_Store
